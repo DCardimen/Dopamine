@@ -25,6 +25,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y libfontconfig1 unzip wget
           wget -q https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
           unzip -q Godot_v4.7.2-stable_linux.x86_64.zip
           sudo mv Godot_v4.7.2-stable_linux.x86_64 /usr/local/bin/godot
@@ -35,6 +37,7 @@ jobs:
         run: |
           set -euxo pipefail
           wget -q https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
+          rm -rf /tmp/godot-templates
           mkdir -p /tmp/godot-templates
           unzip -q Godot_v4.7.2-stable_export_templates.tpz -d /tmp/godot-templates
           mkdir -p "$HOME/.local/share/godot/export_templates/4.7.2.stable"
@@ -44,8 +47,10 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          rm -rf web
           mkdir -p web
-          godot --headless --path . --export-release Web web/index.html
+          godot --headless --path . --export-release Web /tmp/dopamine-web.zip
+          unzip -q /tmp/dopamine-web.zip -d web
           touch web/.nojekyll
 
       - name: Configure Pages
