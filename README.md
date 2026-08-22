@@ -1,8 +1,8 @@
 # Dopamine
 
-# ▶ [TEST GAME](https://githubraw.com/DCardimen/Dopamine/main/playtest/index.html)
+# ▶ [TEST GAME](https://dopamine-playtest.vercel.app)
 
-**One tap opens the latest standalone browser playtest.** This route does not depend on GitHub Pages, Actions, Codespaces, or a Godot export.
+**One tap opens the latest standalone browser playtest.** The playtest is hosted on Vercel and does not depend on GitHub Pages, Actions, Codespaces, or a Godot export.
 
 **Dopamine** is an auto-battler action RPG built around deep skill customization, passive-tree buildcraft, monster density, and highly readable combat spectacle.
 
@@ -21,7 +21,7 @@ The current browser playtest includes:
 - Goremaw boss
 - Seven hand-authored combat waves
 - Threat-weighted targeting
-- Damage numbers, knockback, overkill-style death particles, skill telegraphs
+- Damage numbers, knockback, death particles, and skill telegraphs
 - 1x / 2x / 3x speed buttons that work on mobile
 - Wave results with per-skill damage contribution
 - One-tap next wave / retry
