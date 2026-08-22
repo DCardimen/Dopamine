@@ -6,11 +6,13 @@ GODOT_DIR="$HOME/.local/bin"
 TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
 
 sudo apt-get update -y
-sudo apt-get install -y wget unzip python3
+sudo apt-get install -y wget unzip python3 libfontconfig1
 mkdir -p "$GODOT_DIR" "$TEMPLATE_DIR"
 
 if [ ! -x "$GODOT_DIR/godot" ]; then
   wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -O /tmp/godot.zip
+  rm -rf /tmp/godot
+  mkdir -p /tmp/godot
   unzip -qo /tmp/godot.zip -d /tmp/godot
   mv "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$GODOT_DIR/godot"
   chmod +x "$GODOT_DIR/godot"
