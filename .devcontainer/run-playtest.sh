@@ -4,13 +4,15 @@ set -u
 export PATH="$HOME/.local/bin:$PATH"
 rm -rf web
 mkdir -p web
+rm -f /tmp/dopamine-web.zip
 
 BUILD_LOG="web/build.log"
 
 echo "[Dopamine] Exporting Godot web build..."
-if godot --headless --path . --export-release Web web/index.html >"$BUILD_LOG" 2>&1; then
+if godot --headless --path . --export-release Web /tmp/dopamine-web.zip >"$BUILD_LOG" 2>&1; then
+  echo "[Dopamine] Export succeeded. Unpacking browser build..."
+  unzip -qo /tmp/dopamine-web.zip -d web
   touch web/.nojekyll
-  echo "[Dopamine] Export succeeded."
 else
   echo "[Dopamine] Export failed. Building browser error report..."
   cp "$BUILD_LOG" /tmp/dopamine-build.log 2>/dev/null || true
