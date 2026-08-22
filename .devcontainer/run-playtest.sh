@@ -7,9 +7,12 @@ mkdir -p web
 
 BUILD_LOG="web/build.log"
 
+echo "[Dopamine] Exporting Godot web build..."
 if godot --headless --path . --export-release Web web/index.html >"$BUILD_LOG" 2>&1; then
   touch web/.nojekyll
+  echo "[Dopamine] Export succeeded."
 else
+  echo "[Dopamine] Export failed. Building browser error report..."
   cp "$BUILD_LOG" /tmp/dopamine-build.log 2>/dev/null || true
   python3 - <<'PY'
 from pathlib import Path
@@ -40,6 +43,7 @@ Path("web/index.html").write_text(page)
 PY
 fi
 
+echo "[Dopamine] Restarting preview server on port 8000..."
 pkill -f "python3 -m http.server 8000" 2>/dev/null || true
 nohup python3 -m http.server 8000 --directory web >/tmp/dopamine-server.log 2>&1 &
-echo "Dopamine playtest server: port 8000"
+echo "[Dopamine] Playtest server ready: port 8000"
