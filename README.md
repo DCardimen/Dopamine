@@ -26,4 +26,23 @@ Prototype scope:
 - 1x / 2x / 3x simulation speed
 - Instant next-wave flow
 
-Implementation work is developed on milestone branches and merged when the milestone is playable.
+## Run the prototype
+
+1. Install Godot 4.x.
+2. Clone this repository.
+3. Check out `goal-01-combat-loop` while the first milestone is under review.
+4. Import `project.godot` into Godot.
+5. Press **F6/F5** to run the project.
+
+The combat is fully automatic.
+
+- `1` = 1x speed
+- `2` = 2x speed
+- `3` = 3x speed
+- `Space` = next wave / restart
+
+See [`docs/goal-01-combat-loop.md`](docs/goal-01-combat-loop.md) for the test encounters and acceptance criteria.
+
+## Development rule
+
+Milestones are developed on branches and merged only after they are playable. We prioritize skill feel, build interactions, combat readability, and the desire to immediately run another encounter over content volume.
