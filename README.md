@@ -1,8 +1,8 @@
 # Dopamine
 
-# ▶ [TEST GAME](https://dcardimen.github.io/Dopamine/)
+# ▶ [TEST GAME](https://githubraw.com/DCardimen/Dopamine/main/playtest/index.html)
 
-**One tap should open the latest playable build.** Every push to `main` automatically rebuilds and republishes the browser version.
+**One tap opens the latest standalone browser playtest.** This route does not depend on GitHub Pages, Actions, Codespaces, or a Godot export.
 
 **Dopamine** is an auto-battler action RPG built around deep skill customization, passive-tree buildcraft, monster density, and highly readable combat spectacle.
 
@@ -12,38 +12,30 @@ The player is the architect of the build: skills, priorities, targeting rules, p
 
 ### Goal 01 — Nail the 30-Second Combat Loop
 
-The first playable prototype deliberately excludes loot, leveling, story, crafting, and procedural generation. It exists to answer one question:
+The current browser playtest includes:
 
-> Is watching the character fight packs of monsters satisfying enough that you immediately want the next wave?
+- Vanguard auto-combat
+- Heavy Slash, Whirlwind, and Ground Slam
+- Rotlings, Boneguards, Cultist Archers, Exploders, Necromancers
+- Frenzied Boneguard elite
+- Goremaw boss
+- Seven hand-authored combat waves
+- Threat-weighted targeting
+- Damage numbers, knockback, overkill-style death particles, skill telegraphs
+- 1x / 2x / 3x speed buttons that work on mobile
+- Wave results with per-skill damage contribution
+- One-tap next wave / retry
 
-Prototype scope:
+## What to judge
 
-- One melee hero: Vanguard
-- Heavy Slash basic attack
-- Whirlwind and Ground Slam
-- Five normal enemy archetypes
-- One elite
-- One miniboss
-- Seven hand-authored waves
-- Automatic targeting, movement, skill use, and threat response
-- Combat feedback, damage numbers, overkill reactions, and post-wave metrics
-- 1x / 2x / 3x simulation speed
-- Instant next-wave flow
-
-## Controls
-
-Combat is fully automatic. On desktop, `1` / `2` / `3` changes simulation speed and `Space` advances. The on-screen **Next Wave** button can also be clicked or tapped.
+Ignore final art for now. Judge whether the combat has rhythm, whether dangerous enemies are readable, whether the hero makes sensible choices, whether Slam and Whirlwind feel distinct, and whether you want to immediately run another wave.
 
 ## Developer tools
 
-These are optional and should not be needed just to playtest:
+These are optional and are not required to playtest:
 
 - [Open development environment in Codespaces](https://codespaces.new/DCardimen/Dopamine?quickstart=1)
 - [Edit code in the browser](https://github.dev/DCardimen/Dopamine)
-- Local Godot: clone the repository, open `project.godot`, and press **F5/F6**.
+- Godot source remains in the repository for the main game implementation.
 
-See [`docs/goal-01-combat-loop.md`](docs/goal-01-combat-loop.md) for the test encounters and acceptance criteria.
-
-## Development rule
-
-Milestones are developed separately and merged when ready. We prioritize skill feel, build interactions, combat readability, and the desire to immediately run another encounter over content volume.
+See [`docs/goal-01-combat-loop.md`](docs/goal-01-combat-loop.md) for the original acceptance criteria.
