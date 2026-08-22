@@ -2,7 +2,7 @@
 
 # ▶ [TEST GAME](https://dopamine-playtest.vercel.app)
 
-**One tap opens the latest standalone browser playtest.** The playtest is hosted on Vercel and does not depend on GitHub Pages, Actions, Codespaces, or a Godot export.
+**One tap opens the latest playable Goal 01 build.** No Codespaces, terminal, or local Godot install is required to playtest.
 
 **Dopamine** is an auto-battler action RPG built around deep skill customization, passive-tree buildcraft, monster density, and highly readable combat spectacle.
 
@@ -12,30 +12,40 @@ The player is the architect of the build: skills, priorities, targeting rules, p
 
 ### Goal 01 — Nail the 30-Second Combat Loop
 
-The current browser playtest includes:
+The current **v2 combat-feel pass** adds stronger impact feedback, clearer skill cooldowns, autonomous threat dodging, improved enemy readability, Frenzied Boneguard escalation, and a more involved Goremaw fight with Cleave, Rupture, Charge, and enrage behavior.
 
-- Vanguard auto-combat
+The prototype deliberately excludes loot, leveling, story, crafting, and procedural generation. It exists to answer one question:
+
+> Is watching the character fight packs of monsters satisfying enough that you immediately want the next wave?
+
+Prototype scope:
+
+- Vanguard auto-battler hero
 - Heavy Slash, Whirlwind, and Ground Slam
-- Rotlings, Boneguards, Cultist Archers, Exploders, Necromancers
+- Five normal enemy archetypes
 - Frenzied Boneguard elite
-- Goremaw boss
-- Seven hand-authored combat waves
-- Threat-weighted targeting
-- Damage numbers, knockback, death particles, and skill telegraphs
-- 1x / 2x / 3x speed buttons that work on mobile
-- Wave results with per-skill damage contribution
-- One-tap next wave / retry
+- Goremaw miniboss
+- Seven hand-authored encounters
+- Threat-weighted targeting and automatic movement
+- Autonomous danger dodging
+- Crit / impact / overkill feedback
+- Post-wave combat report including dodge and impact metrics
+- 1x / 2x / 3x mobile controls
 
-## What to judge
+## Controls
 
-Ignore final art for now. Judge whether the combat has rhythm, whether dangerous enemies are readable, whether the hero makes sensible choices, whether Slam and Whirlwind feel distinct, and whether you want to immediately run another wave.
+Combat is fully automatic. Tap **1x / 2x / 3x** to change simulation speed and **Next Wave** after an encounter.
 
 ## Developer tools
 
-These are optional and are not required to playtest:
+These are optional and should not be needed just to playtest:
 
 - [Open development environment in Codespaces](https://codespaces.new/DCardimen/Dopamine?quickstart=1)
 - [Edit code in the browser](https://github.dev/DCardimen/Dopamine)
-- Godot source remains in the repository for the main game implementation.
+- Local Godot: clone the repository, open `project.godot`, and press **F5/F6**.
 
-See [`docs/goal-01-combat-loop.md`](docs/goal-01-combat-loop.md) for the original acceptance criteria.
+See [`docs/goal-01-combat-loop.md`](docs/goal-01-combat-loop.md) for the current acceptance tests.
+
+## Development rule
+
+Do not add progression systems to hide weak combat. Goal 01 stays focused on skill feel, readable AI decisions, monster pressure, combat feedback, and the desire to immediately run another encounter.
