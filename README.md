@@ -1,17 +1,8 @@
 # Dopamine
 
-## One-click testing / coding
+# ▶ [TEST GAME](https://dcardimen.github.io/Dopamine/)
 
-[![Open in Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/DCardimen/Dopamine?quickstart=1)
-
-### ▶ [PLAYTEST PUBLISHED BUILD](https://dcardimen.github.io/Dopamine/)
-### ✏️ [EDIT CODE IN BROWSER](https://github.dev/DCardimen/Dopamine)
-
-**Recommended:** tap **Open in Codespaces**. GitHub will create a browser-based VS Code environment, install Godot 4.7.2 and its web export templates, build Dopamine, start a private preview server, and automatically open the playtest from port `8000`.
-
-If the game has a Godot compile/export error, the preview still opens and tells you where to find the build log. After making a fix, run `bash .devcontainer/run-playtest.sh` in the Codespaces terminal to rebuild and refresh the test server.
-
-The published GitHub Pages build remains available as a simpler play-only route once deployment is healthy.
+**One tap should open the latest playable build.** Every push to `main` automatically rebuilds and republishes the browser version.
 
 **Dopamine** is an auto-battler action RPG built around deep skill customization, passive-tree buildcraft, monster density, and highly readable combat spectacle.
 
@@ -43,9 +34,13 @@ Prototype scope:
 
 Combat is fully automatic. On desktop, `1` / `2` / `3` changes simulation speed and `Space` advances. The on-screen **Next Wave** button can also be clicked or tapped.
 
-## Local fallback
+## Developer tools
 
-Install Godot 4.x, clone the repository, open `project.godot`, and press **F5/F6**.
+These are optional and should not be needed just to playtest:
+
+- [Open development environment in Codespaces](https://codespaces.new/DCardimen/Dopamine?quickstart=1)
+- [Edit code in the browser](https://github.dev/DCardimen/Dopamine)
+- Local Godot: clone the repository, open `project.godot`, and press **F5/F6**.
 
 See [`docs/goal-01-combat-loop.md`](docs/goal-01-combat-loop.md) for the test encounters and acceptance criteria.
 
