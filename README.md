@@ -1,5 +1,9 @@
 # Dopamine
 
+## ▶ [PLAYTEST IN YOUR BROWSER](https://dcardimen.github.io/Dopamine/)
+
+**No install required.** The current Goal 01 build auto-fights through seven graybox encounters. Use the on-screen **Next Wave** button to continue; desktop users can also press `1` / `2` / `3` for simulation speed and `Space` to advance.
+
 **Dopamine** is an auto-battler action RPG built around deep skill customization, passive-tree buildcraft, monster density, and highly readable combat spectacle.
 
 The player is the architect of the build: skills, priorities, targeting rules, positioning, gear, and passive interactions determine how the hero fights automatically.
