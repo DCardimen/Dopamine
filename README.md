@@ -1,5 +1,9 @@
 # Dopamine
 
+## ▶ [PLAYTEST IN YOUR BROWSER](https://dcardimen.github.io/Dopamine/)
+
+**No install required.** Combat is automatic. On desktop, `1` / `2` / `3` changes speed and `Space` advances; the on-screen **Next Wave** button is also clickable/tappable.
+
 **Dopamine** is an auto-battler action RPG built around deep skill customization, passive-tree buildcraft, monster density, and highly readable combat spectacle.
 
 The player is the architect of the build: skills, priorities, targeting rules, positioning, gear, and passive interactions determine how the hero fights automatically.
@@ -26,20 +30,9 @@ Prototype scope:
 - 1x / 2x / 3x simulation speed
 - Instant next-wave flow
 
-## Run the prototype
+## Local fallback
 
-1. Install Godot 4.x.
-2. Clone this repository.
-3. Check out `goal-01-combat-loop` while the first milestone is under review.
-4. Import `project.godot` into Godot.
-5. Press **F6/F5** to run the project.
-
-The combat is fully automatic.
-
-- `1` = 1x speed
-- `2` = 2x speed
-- `3` = 3x speed
-- `Space` = next wave / restart
+If the browser deployment is unavailable, install Godot 4.x, clone the repository, check out `goal-01-combat-loop`, import `project.godot`, and press **F5/F6**.
 
 See [`docs/goal-01-combat-loop.md`](docs/goal-01-combat-loop.md) for the test encounters and acceptance criteria.
 
