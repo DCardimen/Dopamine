@@ -142,8 +142,9 @@ func perform_attack() -> void:
 		return
 	attack_cooldown = attack_period
 	if role == "archer" or role == "necromancer":
-		if get_tree().current_scene.has_method("spawn_tracer"):
-			get_tree().current_scene.spawn_tracer(global_position, target.global_position, base_color)
+		var scene := get_tree().current_scene
+		if scene != null and scene.has_method("spawn_tracer"):
+			scene.call("spawn_tracer", global_position, target.global_position, base_color)
 	deal_player_damage(attack_damage)
 
 func update_exploder(delta: float) -> bool:
@@ -155,8 +156,9 @@ func update_exploder(delta: float) -> bool:
 		if explosion_windup <= 0.0:
 			if distance <= 100.0:
 				deal_player_damage(attack_damage)
-			if get_tree().current_scene.has_method("combat_impact"):
-				get_tree().current_scene.combat_impact(global_position, 100.0)
+			var scene := get_tree().current_scene
+			if scene != null and scene.has_method("combat_impact"):
+				scene.call("combat_impact", global_position, 100.0)
 			last_overkill_ratio = 1.2
 			die(self)
 		return true
@@ -177,11 +179,11 @@ func update_necromancer() -> void:
 		var enemy := node as CombatActor
 		if enemy != null and not enemy.dead:
 			living += 1
-	if living < 28 and get_tree().current_scene.has_method("spawn_enemy"):
+	var scene := get_tree().current_scene
+	if living < 28 and scene != null and scene.has_method("spawn_enemy"):
 		for i in 2:
 			var offset := Vector2.from_angle(randf() * TAU) * randf_range(45.0, 80.0)
-			get_tree().current_scene.spawn_enemy("rotling", global_position + offset)
-	# A small sustain pulse makes leaving the support alive visibly costly.
+			scene.call("spawn_enemy", "rotling", global_position + offset)
 	for node in get_tree().get_nodes_in_group("enemies"):
 		var ally := node as CombatActor
 		if ally != null and ally != self and not ally.dead and global_position.distance_to(ally.global_position) < 180.0:
@@ -219,25 +221,27 @@ func resolve_boss_action() -> void:
 		boss_action = ""
 		return
 	var distance := global_position.distance_to(target.global_position)
+	var scene := get_tree().current_scene
 	if boss_action == "cleave":
 		if distance <= 135.0:
 			deal_player_damage(105.0)
 			target.apply_knockback(global_position.direction_to(target.global_position), 340.0)
-		if get_tree().current_scene.has_method("combat_impact"):
-			get_tree().current_scene.combat_impact(global_position, 135.0)
+		if scene != null and scene.has_method("combat_impact"):
+			scene.call("combat_impact", global_position, 135.0)
 	elif boss_action == "rupture":
 		if distance <= 225.0:
 			deal_player_damage(82.0)
-		if get_tree().current_scene.has_method("combat_impact"):
-			get_tree().current_scene.combat_impact(global_position, 225.0)
+		if scene != null and scene.has_method("combat_impact"):
+			scene.call("combat_impact", global_position, 225.0)
 	boss_action = ""
 	queue_redraw()
 
 func deal_player_damage(amount: float) -> void:
 	if target == null or target.dead:
 		return
-	if get_tree().current_scene.has_method("register_damage_taken"):
-		get_tree().current_scene.register_damage_taken(amount)
+	var scene := get_tree().current_scene
+	if scene != null and scene.has_method("register_damage_taken"):
+		scene.call("register_damage_taken", amount)
 	target.take_damage(amount, self, false)
 
 func clamp_to_arena() -> void:
