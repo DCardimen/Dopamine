@@ -34,8 +34,9 @@ func take_damage(amount: float, source: Node = null, crit: bool = false) -> void
 	hp -= amount
 	hit_flash = 0.07 if not crit else 0.11
 	queue_redraw()
-	if get_tree().current_scene.has_method("spawn_damage_number"):
-		get_tree().current_scene.spawn_damage_number(global_position, amount, crit)
+	var scene := get_tree().current_scene
+	if scene != null and scene.has_method("spawn_damage_number"):
+		scene.call("spawn_damage_number", global_position, amount, crit)
 	if hp <= 0.0:
 		last_overkill_ratio = amount / maxf(1.0, remaining_before)
 		die(source)
@@ -57,12 +58,14 @@ func die(source: Node = null) -> void:
 	dead = true
 	velocity = Vector2.ZERO
 	died.emit(self)
-	if get_tree().current_scene.has_method("register_kill"):
-		get_tree().current_scene.register_kill(self, source)
+	var scene := get_tree().current_scene
+	if scene != null and scene.has_method("register_kill"):
+		scene.call("register_kill", self, source)
 	var tween := create_tween()
 	var launch := clampf((last_overkill_ratio - 1.0) * 14.0, 0.0, 48.0)
 	if launch > 0.0 and source is Node2D:
-		var away := (global_position - source.global_position).normalized()
+		var source_2d := source as Node2D
+		var away := (global_position - source_2d.global_position).normalized()
 		tween.parallel().tween_property(self, "position", position + away * launch, 0.16)
 	tween.parallel().tween_property(self, "scale", Vector2.ONE * (1.0 + minf(last_overkill_ratio * 0.08, 0.35)), 0.08)
 	tween.tween_property(self, "modulate:a", 0.0, 0.18)
