@@ -1,21 +1,18 @@
 {
   "name": "Dopamine Godot",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "forwardPorts": [8000],
   "portsAttributes": {
     "8000": {
       "label": "Dopamine Playtest",
-      "onAutoForward": "openBrowser",
-      "visibility": "private"
+      "onAutoForward": "openBrowser"
     }
   },
   "postCreateCommand": "bash .devcontainer/setup-godot.sh",
   "postStartCommand": "bash .devcontainer/run-playtest.sh",
   "customizations": {
     "vscode": {
-      "extensions": [
-        "geequlim.godot-tools"
-      ]
+      "extensions": ["geequlim.godot-tools"]
     }
   }
 }
