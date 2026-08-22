@@ -152,15 +152,17 @@ func execute_ground_slam() -> void:
 		deal_damage(enemy, SLAM_DAMAGE, false, "Ground Slam")
 		if is_instance_valid(enemy):
 			enemy.apply_knockback(global_position.direction_to(enemy.global_position), 430.0)
-	if get_tree().current_scene.has_method("combat_impact"):
-		get_tree().current_scene.combat_impact(global_position, SLAM_RADIUS)
+	var scene := get_tree().current_scene
+	if scene != null and scene.has_method("combat_impact"):
+		scene.call("combat_impact", global_position, SLAM_RADIUS)
 	queue_redraw()
 
 func deal_damage(enemy: CombatActor, amount: float, crit: bool, skill_name: String) -> void:
 	if enemy == null or enemy.dead:
 		return
-	if get_tree().current_scene.has_method("register_damage"):
-		get_tree().current_scene.register_damage(skill_name, amount)
+	var scene := get_tree().current_scene
+	if scene != null and scene.has_method("register_damage"):
+		scene.call("register_damage", skill_name, amount)
 	enemy.take_damage(amount, self, crit)
 
 func enemies_in_radius(radius: float) -> Array[CombatActor]:
@@ -177,7 +179,6 @@ func clamp_to_arena() -> void:
 
 func _draw() -> void:
 	super._draw()
-	# Simple sword/heading marker so facing and movement remain readable in graybox.
 	draw_line(Vector2(12, -4), Vector2(36, -20), Color(0.85, 0.90, 1.0), 6.0)
 	if whirlwind_time > 0.0:
 		draw_arc(Vector2.ZERO, WHIRLWIND_RADIUS, 0.0, TAU, 48, Color(0.55, 0.85, 1.0, 0.50), 5.0)
