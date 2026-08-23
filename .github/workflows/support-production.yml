@@ -1,0 +1,58 @@
+name: Support System Production Gate
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/support-production.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  public-support:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Verify production support system in Chrome
+        id: gate
+        continue-on-error: true
+        run: |
+          set +e; : >/tmp/public-support-report.txt
+          URL='https://dopamine-playtest.vercel.app/'
+          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          echo "CHROME=$C" | tee -a /tmp/public-support-report.txt
+          [ -n "$C" ] && "$C" --version | tee -a /tmp/public-support-report.txt
+          CORE=99; MOBILE=99; SOAK=99
+          if [ -n "$C" ]; then
+            timeout 100s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=65000 --dump-dom "${URL}?supporttest=1&seed=6611227&v=support-12" >/tmp/pub-core 2>/tmp/pub-core.err
+            grep -q 'SUPPORT_FINAL_CORE_OK=true' /tmp/pub-core && grep -q 'CATALOG_COUNT=60' /tmp/pub-core && grep -q 'MEANINGFUL_EFFECTS=true' /tmp/pub-core && grep -q 'SLOT_PROGRESSION=true' /tmp/pub-core && grep -q 'SLOTS_START_ZERO=true' /tmp/pub-core && grep -q 'SLOT_CURVE_ESCALATES=true' /tmp/pub-core && grep -q 'SLOT10_LONG_CHASE=true' /tmp/pub-core && grep -q 'HIGHER_MONSTER_BETTER=true' /tmp/pub-core && grep -q 'PICKUP_UNLOCKS_SLOT=true' /tmp/pub-core && grep -q 'TEN_SLOT_CAP=true' /tmp/pub-core && grep -q 'ELEVENTH_REJECTED=true' /tmp/pub-core && grep -q 'ECHO_REPEAT_CAST=true' /tmp/pub-core && grep -q 'ROOM_ROLLOVER_READY=true' /tmp/pub-core && grep -q 'ERRORS=</pre>' /tmp/pub-core; CORE=$?
+            echo "PUBLIC_SUPPORT_CORE_EXIT=$CORE" | tee -a /tmp/public-support-report.txt
+            for K in SUPPORT_FINAL_CORE_OK CATALOG_COUNT CATEGORY_COUNT MEANINGFUL_EFFECTS MIN_COMPATIBLE_PER_SKILL SLOT_PROGRESSION SLOTS_START_ZERO SLOT_CURVE_ESCALATES SLOT10_LONG_CHASE HIGHER_MONSTER_BETTER PICKUP_UNLOCKS_SLOT TEN_SLOT_CAP ELEVENTH_REJECTED COPY_ALLOCATION COOLDOWN_CHANGED CONVERSION_COLD_APPLIED ECHO_REPEAT_CAST ROOM_ROLLOVER_READY BOSS_STAGE_DROPS SUPPORT_UI ERRORS; do grep -o "$K=[^<]*" /tmp/pub-core | head -1 | tee -a /tmp/public-support-report.txt; done
+
+            timeout 90s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=50000 --dump-dom "${URL}?supportmobile=1&seed=6611227&v=support-12" >/tmp/pub-mobile 2>/tmp/pub-mobile.err
+            grep -q 'SUPPORT_MOBILE_OK=true' /tmp/pub-mobile && grep -q 'SUMMARY_VISIBLE=true' /tmp/pub-mobile && grep -q 'PROCEED_VISIBLE=true' /tmp/pub-mobile && grep -q 'PROCEED_TOPMOST=true' /tmp/pub-mobile && grep -q 'SUPPORT_PANEL=true' /tmp/pub-mobile && grep -q 'LOCKED_SLOTS_AT_START=10' /tmp/pub-mobile && grep -q 'ERRORS=</pre>' /tmp/pub-mobile; MOBILE=$?
+            echo "PUBLIC_SUPPORT_MOBILE_EXIT=$MOBILE" | tee -a /tmp/public-support-report.txt
+            for K in SUPPORT_MOBILE_OK SUMMARY_VISIBLE SUMMARY_FOOTER_CLEARANCE PROCEED_VISIBLE PROCEED_TOPMOST PROCEED_TEXT SUPPORT_PANEL LOCKED_SLOTS_AT_START VIEWPORT ERRORS; do grep -o "$K=[^<]*" /tmp/pub-mobile | head -1 | tee -a /tmp/public-support-report.txt; done
+
+            timeout 240s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=190000 --dump-dom "${URL}?supportsoak=1&seed=38118421&v=support-12" >/tmp/pub-soak 2>/tmp/pub-soak.err
+            grep -q 'SUPPORT_SOAK_OK=true' /tmp/pub-soak && grep -q 'SIM_SECONDS=3600' /tmp/pub-soak && grep -q 'STALLS=0' /tmp/pub-soak && grep -q 'CAST_COVERAGE=true' /tmp/pub-soak && grep -q 'SUPPORT_COVERAGE=true' /tmp/pub-soak && grep -q 'ERRORS=</pre>' /tmp/pub-soak; SOAK=$?
+            echo "PUBLIC_SUPPORT_1H_EXIT=$SOAK" | tee -a /tmp/public-support-report.txt
+            for K in SUPPORT_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS TRUNCATED_FINAL_ROOMS CAST_COVERAGE SUPPORT_COVERAGE SUPPORT_DROPS CASTS STALL_INFO ERRORS; do grep -o "$K=[^<]*" /tmp/pub-soak | head -1 | tee -a /tmp/public-support-report.txt; done
+          fi
+          if [ "$CORE" -eq 0 ] && [ "$MOBILE" -eq 0 ] && [ "$SOAK" -eq 0 ]; then echo 'SUPPORT_PUBLIC_FINAL=PASS' | tee -a /tmp/public-support-report.txt; exit 0; fi
+          echo 'SUPPORT_PUBLIC_FINAL=FAIL' | tee -a /tmp/public-support-report.txt
+          for F in core mobile soak; do echo "--- public $F tail ---" | tee -a /tmp/public-support-report.txt; tail -c 10000 "/tmp/pub-$F" 2>/dev/null | tee -a /tmp/public-support-report.txt; echo "--- public $F stderr ---" | tee -a /tmp/public-support-report.txt; tail -c 3000 "/tmp/pub-$F.err" 2>/dev/null | tee -a /tmp/public-support-report.txt; done
+          exit 1
+      - name: Publish production report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          { echo "### Support system PUBLIC production gate ${OUTCOME^^}"; echo; echo "Tested: https://dopamine-playtest.vercel.app/?v=support-12"; echo; echo '```text'; cat /tmp/public-support-report.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
+          gh issue comment 6 --repo DCardimen/Dopamine --body-file /tmp/report.md
+      - name: Enforce
+        if: steps.gate.outcome != 'success'
+        run: exit 1
