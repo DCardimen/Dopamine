@@ -1,0 +1,15 @@
+'use strict';
+(()=>{
+const q=new URLSearchParams(location.search);if(['selftest','goal3test','goal3mobiletest','goal3soak'].some(k=>q.has(k)))return;
+const overlay=document.getElementById('overlay'),card=document.getElementById('card'),footer=document.querySelector('footer'),next=document.getElementById('next'),go=document.getElementById('go');
+if(!overlay||!card||!footer||!next)return;
+const css=document.createElement('style');css.id='g6StageSummaryCss';css.textContent=`
+:root{--g6footer-h:64px}footer{position:relative!important;z-index:70!important;flex:0 0 auto!important}#overlay{position:fixed!important;top:70px!important;left:0!important;right:0!important;bottom:calc(var(--g6footer-h) + 7px)!important;inset:auto 0 calc(var(--g6footer-h) + 7px) 0!important;display:none;align-items:flex-end!important;justify-content:center!important;padding:8px 10px 0!important;z-index:50!important;background:linear-gradient(180deg,#02050a66,#02050ad9)!important;pointer-events:auto!important}#card{width:min(520px,96vw)!important;max-height:100%!important;overflow:auto!important;border-radius:16px 16px 8px 8px!important;padding:12px 14px 10px!important}#card .result{font-size:clamp(18px,5vw,24px)!important;margin-bottom:4px!important}#card .grade{margin-bottom:7px!important}#card pre{margin:7px 0!important;padding:9px!important;font-size:10px!important;line-height:1.35!important}.insight{margin:6px 0!important;padding:8px!important;font-size:10px!important}.actions{margin-top:7px!important;position:sticky!important;bottom:-10px!important;background:#0d1928!important;padding:7px 0 1px!important}#next{position:relative!important;z-index:90!important;box-shadow:0 0 0 1px #f1bd6040 inset!important}@media(max-width:520px){#overlay{top:70px!important;padding:5px 6px 0!important}#card{width:100%!important;max-height:100%!important;padding:9px 10px 7px!important}#card pre{font-size:8px!important}.insight{font-size:9px!important}.actions button{min-height:38px!important;font-size:10px!important}}
+`;document.head.appendChild(css);
+function syncSafeZone(){const h=Math.ceil(footer.getBoundingClientRect().height||64);document.documentElement.style.setProperty('--g6footer-h',h+'px')}
+function pinSummary(win){syncSafeZone();overlay.style.display='flex';next.disabled=false;next.textContent=win?`PROCEED • DEPTH ${depth+1}`:`RETRY • DEPTH ${depth}`;if(go)go.textContent=win?`PROCEED TO ${depth+1}`:`RETRY DEPTH ${depth}`;requestAnimationFrame(syncSafeZone)}
+window.addEventListener('resize',syncSafeZone,{passive:true});syncSafeZone();
+const rawFinish=typeof finish==='function'?finish:null;if(rawFinish)finish=function(win){rawFinish(win);pinSummary(win)};
+const rawBegin=typeof beginRoom==='function'?beginRoom:null;if(rawBegin)beginRoom=function(){overlay.style.display='none';rawBegin();syncSafeZone()};
+window.DopamineStageSummary=Object.freeze({version:'Stage Summary Safe Zone v1.0',sync:syncSafeZone,pin:pinSummary,footerClearance:()=>Math.max(0,footer.getBoundingClientRect().top-overlay.getBoundingClientRect().bottom)});
+})();
