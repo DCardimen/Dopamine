@@ -1,93 +1,17 @@
-name: Goal 03 Browser Gate
+name: Goal 03 Legacy Browser Gate
 
 on:
-  push:
-    branches: [main]
-    paths: ['goal3/**','playtest/**','.github/workflows/goal3-browser-gate.yml']
   workflow_dispatch:
 
 permissions:
   contents: read
-  issues: write
-
-env:
-  PROD: https://dopamine-playtest.vercel.app
 
 jobs:
-  browser-gate:
+  superseded:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - name: Run Goal 03 v1.3 local signoff gates
-        id: gate
-        continue-on-error: true
-        run: |
-          set +e; : >/tmp/gate.txt
-          FILES='legacy-compat.js skills.js runtime-fixes.js progression.js brain-sync.js polish.js signoff.js progression-quality.js quality-v2.js signoff-quality.js'; SYNTAX=0
-          for F in $FILES; do node --check "goal3/$F" || SYNTAX=1; done
-          echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/gate.txt
-          python3 - <<'PY'
-          from pathlib import Path
-          src=Path('playtest/index.html').read_text()
-          fs=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','progression-quality.js','quality-v2.js','signoff-quality.js']
-          Path('playtest/goal3-test.html').write_text(src.replace('</body>',''.join(f'<script src="/goal3/{f}?v=13"></script>' for f in fs)+'</body>'))
-          PY
-          HARNESS=$?; echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/gate.txt
-          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"; echo "CHROME=$C" | tee -a /tmp/gate.txt; [ -n "$C" ] && "$C" --version | tee -a /tmp/gate.txt
-          python3 -m http.server 4173 >/tmp/http.log 2>&1 & HP=$!; sleep 1; curl -fsS http://127.0.0.1:4173/playtest/goal3-test.html >/dev/null; SERVER=$?; echo "SERVER_EXIT=$SERVER" | tee -a /tmp/gate.txt
-          CORE=99; PROG=99; LOAD=99; MOBILE=99; SOAK=99; SIGN=99; FRESH=99; DIV=99; MULTI=99; G2=99; PRODCORE=99
-          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ "$SERVER" -eq 0 ] && [ -n "$C" ]; then
-            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=10000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3test=1&seed=13371337' >/tmp/core 2>/tmp/e
-            grep -q 'GOAL3_TEST_OK=true' /tmp/core && grep -q 'COMPONENT_SMOKE=true' /tmp/core && grep -q 'ERRORS=</pre>' /tmp/core; CORE=$?; echo "CORE_EXIT=$CORE" | tee -a /tmp/gate.txt
-
-            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=10000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3progressiontest=1&seed=13371337' >/tmp/prog 2>/tmp/e
-            grep -q 'GOAL3_PROGRESSION_OK=true' /tmp/prog && grep -q 'LEVEL_SCALING=true' /tmp/prog && grep -q 'ERRORS=</pre>' /tmp/prog; PROG=$?; echo "PROGRESSION_EXIT=$PROG" | tee -a /tmp/gate.txt
-
-            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=8000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3loadoutuitest=1&seed=13371337' >/tmp/load 2>/tmp/e
-            grep -q 'GOAL3_LOADOUT_UI_OK=true' /tmp/load && grep -q 'NO_DUPLICATE_SLOTS=true' /tmp/load; LOAD=$?; echo "LOADOUT_EXIT=$LOAD" | tee -a /tmp/gate.txt
-
-            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=7000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3mobiletest=1&seed=13371337' >/tmp/mobile 2>/tmp/e
-            grep -q 'GOAL3_MOBILE_OK=true' /tmp/mobile && grep -q 'TOUCH_TARGETS=true' /tmp/mobile; MOBILE=$?; echo "MOBILE_EXIT=$MOBILE" | tee -a /tmp/gate.txt
-
-            timeout 100s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=80000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3skillsoak=1&seed=22994417' >/tmp/soak 2>/tmp/e
-            grep -q 'GOAL3_SKILL_SOAK_OK=true' /tmp/soak && grep -q 'SIM_SECONDS=3600' /tmp/soak && grep -q 'STALLS=0' /tmp/soak; SOAK=$?; echo "LEGACY_1H_SOAK_EXIT=$SOAK" | tee -a /tmp/gate.txt
-
-            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=10000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3signofftest=1&seed=13371337' >/tmp/sign 2>/tmp/e
-            grep -q 'GOAL3_SIGNOFF_TEST_OK=true' /tmp/sign && grep -q 'LEVEL20_CAPSTONES=true' /tmp/sign && grep -q 'SMART_PRESETS=true' /tmp/sign && grep -q 'SAVE_SCHEMA_V13=true' /tmp/sign && grep -q 'ERRORS=</pre>' /tmp/sign; SIGN=$?; echo "SIGNOFF_UI_EXIT=$SIGN" | tee -a /tmp/gate.txt
-            for K in GOAL3_SIGNOFF_TEST_OK MASTERY_TRACKS LEVEL20_CAPSTONES COLLECTION_VIEW SMART_PRESETS DROP_HISTORY BRAIN_DESCRIPTIONS TAP_TO_SLOT COOLDOWN_RADIALS CAST_BAR WORLD_LOOT UPGRADE_COMPARE SAVE_SCHEMA_V13 BUILD_WARNINGS; do grep -o "$K=[^<]*" /tmp/sign | head -1 | tee -a /tmp/gate.txt; done
-
-            timeout 100s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=85000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3freshbenchmark=1&seed=4477331' >/tmp/fresh 2>/tmp/e
-            grep -q 'GOAL3_FRESH_BENCHMARK_OK=true' /tmp/fresh && grep -q 'STALLS=0' /tmp/fresh && grep -q 'ERRORS=</pre>' /tmp/fresh; FRESH=$?; echo "FRESH_30M_EXIT=$FRESH" | tee -a /tmp/gate.txt
-            for K in SIM_SECONDS STEPS ROOMS STALLS FIRST_NEW_SKILL FOUR_SKILLS FIRST_MASTERY ALL_SKILLS FIRST_HIGH_ROLL MAX_DROP_DRY_SECONDS DISCOVERED UNLOCK_TIMES; do grep -o "$K=[^<]*" /tmp/fresh | head -1 | tee -a /tmp/gate.txt; done
-
-            timeout 120s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=100000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3diversity=1&seed=728811' >/tmp/div 2>/tmp/e
-            grep -q 'GOAL3_DIVERSITY_OK=true' /tmp/div && grep -q 'ALL_BUILDS_VIABLE=true' /tmp/div && grep -q 'TOTAL_STALLS=0' /tmp/div && grep -q 'ERRORS=</pre>' /tmp/div; DIV=$?; echo "DIVERSITY_EXIT=$DIV" | tee -a /tmp/gate.txt
-            grep -Eo '(GOAL3_DIVERSITY_OK|ALL_BUILDS_VIABLE|TOTAL_STALLS|MELEE|RANGED|CONTROL|SUMMON|MOVEMENT|MIXED)=[^<]*' /tmp/div | tee -a /tmp/gate.txt
-
-            timeout 180s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=160000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3multisoak=1' >/tmp/multi 2>/tmp/e
-            grep -q 'GOAL3_MULTI_SOAK_OK=true' /tmp/multi && grep -q 'RUNS=3' /tmp/multi && grep -q 'CONSISTENT_PACING=true' /tmp/multi && grep -q 'ERRORS=</pre>' /tmp/multi; MULTI=$?; echo "THREE_HOUR_MULTI_SEED_EXIT=$MULTI" | tee -a /tmp/gate.txt
-            for K in GOAL3_MULTI_SOAK_OK RUNS TOTAL_SIM_SECONDS TOTAL_STEPS CONSISTENT_PACING DROP_SPREAD ALL_UNLOCK_SPREAD_SECONDS RUN1 RUN2 RUN3; do grep -o "$K=[^<]*" /tmp/multi | head -1 | tee -a /tmp/gate.txt; done
-
-            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/g2 2>/tmp/e
-            grep -q 'SELFTEST_OK=true' /tmp/g2 && grep -q 'ERRORS=</pre>' /tmp/g2; G2=$?; echo "GOAL2_REGRESSION_EXIT=$G2" | tee -a /tmp/gate.txt
-
-            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=18000 --dump-dom "$PROD/?goal3test=1&seed=13371337&v=goal3-12" >/tmp/prod 2>/tmp/pe
-            grep -q 'GOAL3_TEST_OK=true' /tmp/prod; PRODCORE=$?; echo "CURRENT_PRODUCTION_CORE_EXIT=$PRODCORE" | tee -a /tmp/gate.txt
-          fi
-          kill "$HP" 2>/dev/null || true
-          if [ "$CORE" -eq 0 ] && [ "$PROG" -eq 0 ] && [ "$LOAD" -eq 0 ] && [ "$MOBILE" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$SIGN" -eq 0 ] && [ "$FRESH" -eq 0 ] && [ "$DIV" -eq 0 ] && [ "$MULTI" -eq 0 ] && [ "$G2" -eq 0 ] && [ "$PRODCORE" -eq 0 ]; then echo 'FINAL_GATE=PASS' | tee -a /tmp/gate.txt; exit 0; fi
-          echo 'FINAL_GATE=FAIL' | tee -a /tmp/gate.txt
-          for F in sign fresh div multi; do tail -c 5000 "/tmp/$F" 2>/dev/null | tee -a /tmp/gate.txt; done
-          exit 1
-      - name: Publish result
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          OUTCOME: ${{ steps.gate.outcome }}
-        run: |
-          { echo "### Goal 03 v1.3 local signoff gate — ${OUTCOME^^}"; echo; echo "Commit: \`${GITHUB_SHA}\`"; echo; echo '```text'; cat /tmp/gate.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
-          gh issue comment 4 --body-file /tmp/report.md
-      - name: Enforce gate
-        if: steps.gate.outcome != 'success'
-        run: exit 1
+      - run: |
+          echo 'Goal 03 v1.2 browser gate is superseded by:'
+          echo '  .github/workflows/goal3-v13-signoff.yml'
+          echo '  .github/workflows/goal3-v13-public.yml'
+          echo 'Use those gates for Goal 03 v1.3 and later.'
