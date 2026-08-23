@@ -1,0 +1,67 @@
+name: Goal 04 Phase 2 One-Hour Gate
+
+on:
+  push:
+    branches: [main]
+    paths: ['goal4/**','.github/workflows/goal4-phase2.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  phase2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run Goal 04 Phase 2
+        id: gate
+        continue-on-error: true
+        run: |
+          set +e; : >/tmp/g4.txt
+          FILES='goal4/catalog.js goal4/runtime.js goal4/quality.js'; SYNTAX=0
+          for F in $FILES; do node --check "$F" || SYNTAX=1; done
+          echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/g4.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('playtest/index.html').read_text()
+          g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
+          scripts=''.join(f'<script src="/goal3/{f}?v=4p2"></script>' for f in g3)
+          scripts+=''.join(f'<script src="/goal4/{f}?v=4p2"></script>' for f in ['catalog.js','runtime.js','quality.js'])
+          Path('playtest/goal4-test.html').write_text(src.replace('</body>',scripts+'</body>'))
+          PY
+          HARNESS=$?; echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/g4.txt
+          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"; echo "CHROME=$C" | tee -a /tmp/g4.txt; [ -n "$C" ] && "$C" --version | tee -a /tmp/g4.txt
+          python3 -m http.server 4173 >/tmp/http.log 2>&1 & HP=$!; sleep 1
+          SMOKE=99; SOAK=99; G2=99
+          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$C" ]; then
+            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=18000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-test.html?goal4test=1&seed=13371337' >/tmp/smoke 2>/tmp/e
+            grep -q 'GOAL4_TEST_OK=true' /tmp/smoke && grep -q 'SKILL_COUNT=30' /tmp/smoke && grep -q 'DISTINCT_NEW_BEHAVIORS=23' /tmp/smoke && grep -q 'DROP_BOTTOM_RIGHT=true' /tmp/smoke && grep -q 'ERRORS=</pre>' /tmp/smoke; SMOKE=$?; echo "PHASE1_SMOKE_EXIT=$SMOKE" | tee -a /tmp/g4.txt
+            for K in GOAL4_TEST_OK SKILL_COUNT NEW_SKILLS DISTINCT_NEW_BEHAVIORS UNIQUE_NAMES ROLE_COVERAGE ALL_DIRECT_CASTS ARSENAL_CARDS DROP_BOTTOM_RIGHT DROP_TEXT_COMPACT CASTS DAMAGE ERRORS; do grep -o "$K=[^<]*" /tmp/smoke | head -1 | tee -a /tmp/g4.txt; done
+
+            timeout 180s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=150000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-test.html?goal4soak=1&seed=22994417' >/tmp/soak 2>/tmp/e
+            grep -q 'GOAL4_SOAK_OK=true' /tmp/soak && grep -q 'SIM_SECONDS=3600' /tmp/soak && grep -q 'STALLS=0' /tmp/soak && grep -q 'CAST_COVERAGE=true' /tmp/soak && grep -q 'ERRORS=</pre>' /tmp/soak; SOAK=$?; echo "PHASE2_1H_EXIT=$SOAK" | tee -a /tmp/g4.txt
+            for K in GOAL4_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS TRUNCATED_FINAL_ROOMS CAST_COVERAGE BUILD_COVERAGE CASTS STALL_INFO ERRORS; do grep -o "$K=[^<]*" /tmp/soak | head -1 | tee -a /tmp/g4.txt; done
+            grep -Eo 'BUILD[0-9]+=[^<]*' /tmp/soak | tee -a /tmp/g4.txt
+
+            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/g2 2>/tmp/e
+            grep -q 'SELFTEST_OK=true' /tmp/g2 && grep -q 'ERRORS=</pre>' /tmp/g2; G2=$?; echo "GOAL2_REGRESSION_EXIT=$G2" | tee -a /tmp/g4.txt
+          fi
+          kill "$HP" 2>/dev/null || true
+          if [ "$SMOKE" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$G2" -eq 0 ]; then echo 'PHASE2_FINAL=PASS' | tee -a /tmp/g4.txt; exit 0; fi
+          echo 'PHASE2_FINAL=FAIL' | tee -a /tmp/g4.txt
+          for F in smoke soak; do tail -c 9000 "/tmp/$F" 2>/dev/null | tee -a /tmp/g4.txt; done
+          exit 1
+      - name: Publish Phase 2 report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          { echo "### Goal 04 Phase 2 — one-hour browser test ${OUTCOME^^}"; echo; echo "Commit: \`${GITHUB_SHA}\`"; echo; echo '```text'; cat /tmp/g4.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
+          gh issue comment 5 --body-file /tmp/report.md
+      - name: Enforce gate
+        if: steps.gate.outcome != 'success'
+        run: exit 1
