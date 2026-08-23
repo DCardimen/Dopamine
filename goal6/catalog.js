@@ -8,12 +8,12 @@ add('quickened','Quickened','Tempo','Casts 22% more often, but each hit deals 12
 add('overclocked','Overclocked','Tempo','Cuts supported cooldowns by 38%; damage falls 28%.',{mods:mods(.72,.62),tier:2});
 add('loaded_chamber','Loaded Chamber','Tempo','Slower cadence, much heavier hits.',{mods:mods(1.55,1.32)});
 add('deliberate_power','Deliberate Power','Tempo','Very long cooldowns in exchange for enormous impact.',{mods:mods(1.85,1.55),tier:2});
-add('echo','Echo','Repeat the skill once shortly after the first cast.',{group:'repeat',mods:mods(.80,1.08),repeat:{count:1,delay:.32,mode:'same'}});
-add('double_echo','Double Echo','Repeat twice; each cast is lighter and the cooldown is longer.',{group:'repeat',mods:mods(.62,1.20),repeat:{count:2,delay:.27,mode:'same'},tier:2});
-add('fourth_echo','Fourth Echo','Every fourth cast repeats at full cadence.',{group:'repeat',repeat:{count:1,delay:.24,mode:'same',every:4},tier:2});
-add('staccato','Staccato Cycle','Alternates a very fast light cast with a slower heavy cast.',{pattern:'staccato',tier:2});
-add('crescendo','Crescendo','Repeated casts within 3 seconds ramp damage up to +48%.',{pattern:'crescendo',tier:2});
-add('kill_reset','Predator Reset','A kill primes the supported skill to ignore its remaining cooldown once.',{onKill:'reset',tier:3});
+add('echo','Echo','Repeat','Repeat the skill once shortly after the first cast.',{group:'repeat',mods:mods(.80,1.08),repeat:{count:1,delay:.32,mode:'same'}});
+add('double_echo','Double Echo','Repeat','Repeat twice; each cast is lighter and the cooldown is longer.',{group:'repeat',mods:mods(.62,1.20),repeat:{count:2,delay:.27,mode:'same'},tier:2});
+add('fourth_echo','Fourth Echo','Repeat','Every fourth cast repeats at full cadence.',{group:'repeat',repeat:{count:1,delay:.24,mode:'same',every:4},tier:2});
+add('staccato','Staccato Cycle','Tempo','Alternates a very fast light cast with a slower heavy cast.',{pattern:'staccato',tier:2});
+add('crescendo','Crescendo','Tempo','Repeated casts within 3 seconds ramp damage up to +48%.',{pattern:'crescendo',tier:2});
+add('kill_reset','Predator Reset','Tempo','A kill primes the supported skill to ignore its remaining cooldown once.',{onKill:'reset',tier:3});
 // CONVERSION — 10
 add('pyre','Pyre Conversion','Conversion','Convert supported damage to Fire; hits ignite.',{group:'conversion',conversion:'Fire'});
 add('rime','Rime Conversion','Conversion','Convert supported damage to Cold; hits chill.',{group:'conversion',conversion:'Cold'});
@@ -70,5 +70,5 @@ add('minion_nova','Minion Nova','Minion','Every minion hit splashes damage aroun
 add('rebirth','Rebirth','Minion','Every third summon immediately repeats.',{requires:req('Minion'),group:'repeat',repeat:{count:1,delay:.12,mode:'same',every:3},tier:3});
 add('shared_vitality','Shared Vitality','Minion','Minion damage heals the player for 5% of damage dealt.',{requires:req('Minion'),leech:.05,tier:2});
 const ids=Object.keys(defs);
-window.DopamineSupportCatalog=Object.freeze({version:'Support Catalog v1.0',ids:()=>[...ids],get:id=>defs[id]||null,all:()=>ids.map(id=>defs[id]),count:ids.length,categories:[...new Set(ids.map(id=>defs[id].category))]});
+window.DopamineSupportCatalog=Object.freeze({version:'Support Catalog v1.1',ids:()=>[...ids],get:id=>defs[id]||null,all:()=>ids.map(id=>defs[id]),count:ids.length,categories:[...new Set(ids.map(id=>defs[id].category))]});
 })();
