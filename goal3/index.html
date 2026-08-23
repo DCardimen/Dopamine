@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Dopamine — Goal 03 Core Skill System</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05080d}
+iframe{border:0;width:100%;height:100%;display:block;background:#05080d}
+#boot{position:fixed;inset:0;display:grid;place-items:center;background:#05080d;color:#eef4ff;font:800 14px system-ui;letter-spacing:.04em;z-index:2}
+</style>
+</head>
+<body>
+<div id="boot">LOADING GOAL 03…</div>
+<iframe id="game" title="Dopamine Goal 03 playtest"></iframe>
+<script>
+const frame=document.getElementById('game');
+frame.src='../playtest/index.html'+location.search;
+frame.addEventListener('load',()=>{
+  const doc=frame.contentDocument;
+  const s=doc.createElement('script');
+  s.src='/goal3/skills.js?v=1';
+  s.onload=()=>document.getElementById('boot').remove();
+  s.onerror=()=>{document.getElementById('boot').textContent='GOAL 03 PATCH FAILED TO LOAD';};
+  doc.body.appendChild(s);
+});
+</script>
+</body>
+</html>
