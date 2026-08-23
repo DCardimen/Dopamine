@@ -18,7 +18,7 @@ const frame=document.getElementById('game');
 frame.src='../playtest/index.html'+location.search;
 frame.addEventListener('load',async()=>{
   const doc=frame.contentDocument;
-  const files=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','progression-quality.js'];
+  const files=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','progression-quality.js'];
   try{
     for(const file of files)await new Promise((resolve,reject)=>{const s=doc.createElement('script');s.src='/goal3/'+file+'?v=12';s.onload=resolve;s.onerror=reject;doc.body.appendChild(s)});
     document.getElementById('boot').remove();
