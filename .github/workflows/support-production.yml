@@ -1,5 +1,6 @@
 name: Support System Production Gate
 
+# Public Vercel gate for Support System v1.2.
 on:
   push:
     branches: [main]
