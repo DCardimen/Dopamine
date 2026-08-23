@@ -29,7 +29,7 @@ jobs:
           src=Path('playtest/index.html').read_text()
           g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
           g4=['catalog.js','runtime.js','fun-pass.js','gap-pass.js','gap-stability.js','final-polish.js','quality-final-v2.js']
-          scripts=''.join(f'<script src="/goal3/{f}?v=4final2"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=4final2"></script>' for f in g4)
+          scripts=''.join(f'<script src="/goal3/{f}?v=4final3"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=4final3"></script>' for f in g4)
           Path('playtest/goal4-final-v2.html').write_text(src.replace('</body>',scripts+'</body>'))
           PY
           HARNESS=$?; echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/g4final.txt
@@ -40,10 +40,10 @@ jobs:
             timeout 75s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=45000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-final-v2.html?goal4finalui=1&seed=22994417' >/tmp/ui 2>/tmp/e
             grep -q 'GOAL4_FINAL_UI_OK=true' /tmp/ui && grep -q 'ARSENAL_CARDS=30' /tmp/ui && grep -q 'LOOT_BOTTOM_RIGHT=true' /tmp/ui && grep -q 'COMPARE_POPUP_BOTTOM_RIGHT=true' /tmp/ui && grep -q 'COMPARE_DELTA_COLUMNS=3' /tmp/ui && grep -q 'VISUAL_ACTIVE=true' /tmp/ui && grep -q 'ERRORS=</pre>' /tmp/ui; UI=$?
             echo "FINAL_UI_EXIT=$UI" | tee -a /tmp/g4final.txt
-            for K in GOAL4_FINAL_UI_OK ARSENAL_CARDS CATALOG ROLE_COVERAGE FUN_IMPROVEMENTS GAP_IMPROVEMENTS LOOT_BOTTOM_RIGHT COMPARE_POPUP_BOTTOM_RIGHT COMPARE_DELTA_COLUMNS LOOT_FONT_PX COMPARE_FONT_PX VISUAL_FAMILIES VISUAL_ACTIVE SMART_PRESETS SEARCH_FAVORITES_BUILD_LIBRARY SAVE_BACKUP_SMART_DISCOVERY PROGRESSION_SHAPE ERRORS; do grep -o "$K=[^<]*" /tmp/ui | head -1 | tee -a /tmp/g4final.txt; done
+            for K in GOAL4_FINAL_UI_OK ARSENAL_CARDS CATALOG ROLE_COVERAGE FUN_IMPROVEMENTS GAP_IMPROVEMENTS LOOT_BOTTOM_RIGHT COMPARE_POPUP_BOTTOM_RIGHT COMPARE_DELTA_COLUMNS LOOT_FONT_PX COMPARE_FONT_PX VISUAL_FAMILIES VISUAL_ACTIVE SMART_PRESETS SEARCH_FAVORITES_BUILD_LIBRARY SAVE_BACKUP_SMART_DISCOVERY PROGRESSION_SHAPE EXCEPTION ERRORS; do grep -o "$K=[^<]*" /tmp/ui | head -1 | tee -a /tmp/g4final.txt; done
 
-            timeout 120s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=110000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-final-v2.html?goal4finalmatrix=1&seed=22994417' >/tmp/matrix 2>/tmp/e
-            grep -q 'GOAL4_FINAL_MATRIX_OK=true' /tmp/matrix && grep -q 'STALLS=0' /tmp/matrix && grep -q 'CAST_COVERAGE=true' /tmp/matrix && grep -q 'ERRORS=</pre>' /tmp/matrix; MATRIX=$?
+            timeout 180s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=160000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-final-v2.html?goal4finalmatrix=1&seed=22994417' >/tmp/matrix 2>/tmp/e
+            grep -q 'GOAL4_FINAL_MATRIX_OK=true' /tmp/matrix && grep -q 'MATRIX_ROOMS=300' /tmp/matrix && grep -q 'STALLS=0' /tmp/matrix && grep -q 'CAST_COVERAGE=true' /tmp/matrix && grep -q 'ERRORS=</pre>' /tmp/matrix; MATRIX=$?
             echo "FINAL_MATRIX_EXIT=$MATRIX" | tee -a /tmp/g4final.txt
             for K in GOAL4_FINAL_MATRIX_OK MATRIX_ROOMS MATRIX_STEPS STALLS MIN_WIN_RATE MAX_WIN_RATE CAST_COVERAGE ERRORS; do grep -o "$K=[^<]*" /tmp/matrix | head -1 | tee -a /tmp/g4final.txt; done
             grep -Eo 'BUILD[0-9]+=[^<]*' /tmp/matrix | tee -a /tmp/g4final.txt
