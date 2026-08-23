@@ -2,120 +2,150 @@
 
 ## Status
 
-**IN PROGRESS — v1.0 architecture slice is implemented.**
+**Goal 03 v1.2 is live and machine-verified.**
 
-Goal 03 begins from the verified Goal 02 v1.2 combat/brain baseline. Goal 02 issue #3 remains open because its final human feel gates were intentionally not waived.
+Goal 03 remains layered on the verified Goal 02 v1.2 combat/Brain baseline. Goal 02 issue #3 remains open for its separate human feel gates.
+
+Public build: https://dopamine-playtest.vercel.app/?v=goal3-12
 
 ## Objective
 
-Turn skills from hard-coded combat branches into reusable data-driven recipes. A later content pass should be able to create many genuinely different skills by combining a compact set of shared delivery mechanics and tags rather than adding bespoke scheduler/combat code for every ability.
+Turn skills from hard-coded combat branches into reusable data-driven recipes, then make that foundation feel like a progression system rather than a developer sandbox. Goal 04 can now expand the catalog without re-inventing delivery, leveling, loadout, or drop plumbing for each new skill.
 
-## v1.0 system
+## Core architecture
 
-Each skill definition explicitly carries:
+Every skill carries explicit data for its stable id, player-facing name, tags, delivery component, base damage, damage effectiveness, cast time, cooldown, and delivery-specific values such as range, area, duration, projectile speed, tick rate, and knockback.
 
-- stable skill id and player-facing name
-- tags
-- delivery component
-- base damage
-- damage effectiveness
-- cast time
-- cooldown
-- delivery-specific values such as range, area, duration, projectile speed, tick rate, and knockback
-- small Brain-facing metadata such as single-target, AoE, or utility behavior
+Required tags represented and queryable: Fire, Projectile, Spell, Melee, Movement, Minion, and DoT.
 
-Required tag coverage in this milestone:
+Reusable delivery components:
 
-- Fire
-- Projectile
-- Spell
-- Melee
-- Movement
-- Minion
-- DoT
+1. `melee_arc`
+2. `spin`
+3. `slam`
+4. `projectile`
+5. `dash_strike`
+6. `ground_dot`
+7. `summon`
 
-Reusable delivery components in v1.0:
+The public `window.DopamineSkills` API exposes definitions, tags, delivery lookup, damage resolution, owned skills, levels, effective scaled stats, unlock thresholds, loadout control, and progression state.
 
-1. `melee_arc` — immediate targeted melee hit
-2. `spin` — channeled/ticking player-centered AoE
-3. `slam` — delayed player-centered nova
-4. `projectile` — travel-time player projectile
-5. `dash_strike` — movement plus impact
-6. `ground_dot` — persistent ground damage zone
-7. `summon` — temporary autonomous minion attacker
+## v1.2 progression
 
-## Architecture probes
+The player now begins with only **Heavy Slash Lv 1**. Skills unlock gradually through monster drops rather than being handed to the player at boot.
 
-The v1.0 prototype catalog is intentionally small:
+Current discovery thresholds:
 
-| Skill | Tags | Delivery | Purpose |
-| --- | --- | --- | --- |
-| Heavy Slash | Melee | melee arc | preserves legacy single-target baseline |
-| Whirlwind | Melee | spin | preserves legacy ticking AoE baseline |
-| Ground Slam | Melee | delayed nova | preserves legacy delayed AoE baseline |
-| Firebolt | Fire, Projectile, Spell | projectile | validates travel-time ranged spell behavior |
-| Vault Strike | Melee, Movement | movement strike | validates skill-driven repositioning |
-| Scorch Field | Fire, Spell, DoT | ground DoT | validates persistent damage zones |
-| Ember Wisp | Fire, Spell, Minion | summon | validates autonomous temporary actors |
+| Skill | First eligible monster level |
+| --- | ---: |
+| Heavy Slash | 1 |
+| Firebolt | 2 |
+| Whirlwind | 4 |
+| Vault Strike | 6 |
+| Ground Slam | 8 |
+| Scorch Field | 11 |
+| Ember Wisp | 14 |
 
-These are architecture probes, not the full skill catalog. Goal 04 owns the expansion toward 30 exceptionally distinct skills.
+Normal monsters can drop skills, elites have substantially higher drop odds, bosses guarantee a skill drop, and a pity rule prevents long dry streaks while an eligible skill remains undiscovered.
 
-## Goal 02 integration
+Dropped skills have levels. Monster level controls the level ceiling of drops, with elites and bosses receiving better rolls. Skills currently support levels 1–20. Duplicate drops build resonance; three same-or-lower duplicates can raise a skill by one level up to the level supported by the monsters being fought.
 
-The Goal 02 Brain remains responsible for targeting, pursuit, retreat, cover, danger forecasting, anti-stuck behavior, target lock, adaptive pursuit, starvation protection, and combo scheduling.
+Skill levels improve more than raw damage: cooldown, area, range, duration, projectile speed, tick rate, and crit-related values can scale where relevant.
 
-Goal 03 replaces the hard-coded skill layer under that Brain:
+## Mastery breakpoints
 
-- `skillState()` now resolves readiness through skill definitions and Brain metadata.
-- `castSkill()` dispatches through reusable delivery components.
-- the scheduler accepts data-driven skill ids.
-- Whirlwind and Ground Slam active damage ticks now read the skill definitions instead of retaining hidden damage constants in `combat.js`.
-- the three combat HUD cards display the current top-three Brain skill priorities.
-- room results report the active core-skill loadout.
+Level milestones add behavioral changes so a high-level skill is not merely a larger number:
 
-## Skill Lab
+- **Heavy Slash:** cleave, execute, stronger late mastery.
+- **Firebolt:** ignite, ember splash, stronger burn/splash.
+- **Whirlwind:** momentum damage ramp and sustain.
+- **Vault Strike:** long-distance empowered impact and recovery.
+- **Ground Slam:** stagger/slow and an aftershock.
+- **Scorch Field:** heat stacks and slowing control.
+- **Ember Wisp:** chain ember and level-10 sustain.
 
-Goal 03 adds a compact **SKILLS** panel alongside the Brain editor. It exposes every architecture-probe skill, its tags, delivery type, base damage/effectiveness, cast time, and cooldown, and lets the player assign the skill to Brain priority 1–3.
+## Loadout repair
 
-The editor is intentionally not a loot, leveling, gem, passive-tree, or permanent-progression system.
+The old Skill Lab could change priorities internally but gave weak feedback and allowed awkward duplicate-slot states. v1.2 replaces that interaction with a real three-slot Skill Arsenal:
 
-## Automated gate
+- three explicit Priority 1–3 slots
+- locked skills cannot be equipped
+- moving an already-equipped skill swaps rather than duplicates it
+- newly discovered skills auto-fill the first empty slot
+- selected buttons stay visibly highlighted
+- Brain dropdowns only show owned skills and stay synchronized with the Arsenal
+- loadout and progression persist separately
+- the combat HUD displays the equipped skill and its level
 
-`?goal3test=1` runs the Goal 03 architecture self-test and checks:
+The browser gate does not merely call the loadout API. It clicks the actual Skill Arsenal DOM control and verifies the resulting Brain selection.
 
-- every definition passes the required schema
-- all seven required tags exist in the catalog
-- all seven delivery components are registered
-- base damage, effectiveness, and cast time are separate numeric fields
-- melee, projectile, movement strike, ground DoT, minion, spin, and slam components can all execute against the combat runtime
-- runtime error collection is empty
+## Drop feedback
 
-Expected output begins with:
+v1.2 adds a progression chip, recent-drop feed, and prominent skill-drop banner. The banner includes the dropped skill level and source monster level so higher-level drops are legible as rewards.
 
-`GOAL3_TEST_OK=true`
+## Brain/combat integration
 
-## Deployment strategy
+Goal 02 remains responsible for targeting, pursuit, retreat, cover, danger forecasting, anti-stuck behavior, target lock, adaptive pursuit, starvation protection, and combo scheduling.
 
-The production playtest has historically been a tiny Vercel shell that loads a combat build pinned to a tested GitHub commit. Goal 03 keeps that same rollback-friendly strategy: Goal 02 v1.2 remains the immutable combat baseline and Goal 03 is layered on as a pinned skill-runtime patch.
+Goal 03 now handles skill recipes, cast dispatch, level-scaled skill values, progression ownership, loadout legality, drops, mastery effects, and skill UI. Projectile readiness additionally requires line of sight so a ranged skill does not repeatedly consume scheduler opportunities through terrain.
 
-This prevents Goal 03 work from silently mutating the verified Goal 02 handoff.
+Legacy Slash visual/stat hooks are retained through `legacy-compat.js` while the player-facing name remains Heavy Slash.
 
-## Exit gate
+## Quality gates
 
-Goal 03 is not complete until all of the following are true:
+Goal 03 v1.2 has dedicated Chrome gates for:
 
-- [ ] deployed browser self-test returns `GOAL3_TEST_OK=true`
-- [ ] all delivery components execute without runtime errors
-- [ ] required tags are represented and queryable
-- [ ] legacy Slash / Whirlwind / Ground Slam behavior remains stable
-- [ ] projectile / movement / DoT / minion mechanics are visually and behaviorally distinct
-- [ ] Brain priority editing works with the expanded skill ids
-- [ ] repeated mobile Skill Lab editing is comfortable
-- [ ] human-facing core skill-system quality reaches 9/10+
+- schema and delivery-component execution
+- required tag coverage
+- separated base damage / effectiveness / cast-time semantics
+- progression ownership and monster-level gating
+- skill-drop unlocks and level scaling
+- actual DOM-click loadout selection
+- Brain dropdown synchronization
+- duplicate-slot prevention
+- mobile overflow and touch targets
+- Goal 02 regression
+- one-hour skill/progression soak
+- the same one-hour soak against the public Vercel deployment
 
-## Current implementation
+Latest verified one-hour result, both local and public Vercel:
 
-- `goal3/skills.js` — data-driven definitions, component runtime, Brain bridge, Skill Lab, Goal 03 self-test
-- `goal3/index.html` — repository-local isolated Goal 03 shell
-- Goal 03 implementation commit: `f0012e1f7ddd5aa51810cb4bbf233f709541b509`
-- verified Goal 02 combat baseline: `f8835df56101a93e4d87fa498d17cee228fe292e`
+- 3,600.0 simulated seconds
+- 102,858 simulation steps
+- 210 room wins / 136 room losses before the final partial room
+- 0 genuine combat stalls
+- 1 final room intentionally truncated when the one-hour clock expired
+- 869 skill drops
+- 46 upgrades
+- maximum skill level reached: 16
+- every skill unlocked and cast
+- no recorded stall diagnostics
+- Goal 02 regression: pass
+
+The old soak harness previously reported one “stall” because it counted the final room as stalled whenever the global one-hour clock ended mid-fight. The v1.2 gate corrects that classification without changing the real stall threshold: a room must remain genuinely active for the full 2,600-step / roughly 91-second per-room cap to count as a stall.
+
+## Deployment
+
+Production deployment: `dpl_2cF6BxM8USHHaQ1xMgVr4KLi6tmZ`
+
+Runtime pins:
+
+- Goal 02 v1.2 baseline: `f8835df56101a93e4d87fa498d17cee228fe292e`
+- Goal 03 v1.2 runtime stack: `7bfc3dc1445d61234fe099f1261c55178fe1ae57`
+
+The production Vercel shell loads both from exact Git commits through jsDelivr, preserving deterministic rollback.
+
+## Implementation files
+
+- `goal3/skills.js` — definitions, delivery components, Brain bridge, Skill Lab
+- `goal3/legacy-compat.js` — Goal 02 compatibility hooks
+- `goal3/runtime-fixes.js` — scheduler/line-of-sight compatibility fix
+- `goal3/progression.js` — ownership, drops, levels, mastery behavior, Skill Arsenal
+- `goal3/brain-sync.js` — owned-skill Brain dropdown synchronization
+- `goal3/polish.js` — reward presentation and final mastery polish
+- `goal3/progression-quality.js` — focused progression tests
+- `goal3/quality-v2.js` — DOM loadout test and corrected one-hour soak
+
+## Handoff
+
+The automated and deployed gates are green. The remaining meaningful check is subjective player feel: whether the unlock cadence, drop frequency, level growth, and mastery rewards feel exciting enough in hand. Those can be tuned without changing the Goal 03 architecture.
