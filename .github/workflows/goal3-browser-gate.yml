@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run local and production browser gates
+      - name: Run local quality and production browser gates
         id: gate
         continue-on-error: true
         run: |
@@ -53,56 +53,61 @@ jobs:
           SERVER=$?
           echo "SERVER_EXIT=$SERVER" | tee -a /tmp/gate-summary.txt
 
-          LOCAL_G3=99; LOCAL_UI=99; GOAL2=99; PROD_G3=99; PROD_UI=99
+          LOCAL_G3=99; LOCAL_UI=99; MOBILE=99; SOAK=99; GOAL2=99; PROD_G3=99; PROD_UI=99
           if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$CHROME" ] && [ "$SERVER" -eq 0 ]; then
             "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3test=1&seed=13371337' >/tmp/local-g3.txt 2>/tmp/local-g3.err
-            grep -q 'GOAL3_TEST_OK=true' /tmp/local-g3.txt && grep -q 'SCHEMA_VALID=true' /tmp/local-g3.txt && grep -q 'REQUIRED_TAGS=true' /tmp/local-g3.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/local-g3.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/local-g3.txt && grep -q 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=true' /tmp/local-g3.txt && grep -q 'ERRORS=</pre>' /tmp/local-g3.txt
+            grep -q 'GOAL3_TEST_OK=true' /tmp/local-g3.txt && grep -q 'SCHEMA_VALID=true' /tmp/local-g3.txt && grep -q 'REQUIRED_TAGS=true' /tmp/local-g3.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/local-g3.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/local-g3.txt && grep -q 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=true' /tmp/local-g3.txt && grep -q 'TAG_QUERY_API=true' /tmp/local-g3.txt && grep -q 'ADDED_DAMAGE_EFFECTIVENESS=true' /tmp/local-g3.txt && grep -q 'ERRORS=</pre>' /tmp/local-g3.txt
             LOCAL_G3=$?
             echo "LOCAL_GOAL3_GATE_EXIT=$LOCAL_G3" | tee -a /tmp/gate-summary.txt
-            grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
-            grep -o 'SCHEMA_VALID=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
-            grep -o 'REQUIRED_TAGS=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
-            grep -o 'DELIVERY_COMPONENTS=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
-            grep -o 'COMPONENT_SMOKE=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
-            grep -o 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
+            for K in GOAL3_TEST_OK SCHEMA_VALID REQUIRED_TAGS DELIVERY_COMPONENTS COMPONENT_SMOKE DAMAGE_EFFECTIVENESS_CAST_SEPARATED TAG_QUERY_API ADDED_DAMAGE_EFFECTIVENESS; do grep -o "$K=[^<]*" /tmp/local-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; done
 
             "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?seed=13371337' >/tmp/local-ui.txt 2>/tmp/local-ui.err
             grep -q 'id="skillLabBtn"' /tmp/local-ui.txt && grep -q 'CORE SKILL SYSTEM' /tmp/local-ui.txt && grep -q '>SKILLS<' /tmp/local-ui.txt
             LOCAL_UI=$?
             echo "LOCAL_UI_EXIT=$LOCAL_UI" | tee -a /tmp/gate-summary.txt
 
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=4500 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3mobiletest=1&seed=13371337' >/tmp/mobile.txt 2>/tmp/mobile.err
+            grep -q 'GOAL3_MOBILE_OK=true' /tmp/mobile.txt && grep -q 'NO_HORIZONTAL_OVERFLOW=true' /tmp/mobile.txt && grep -q 'TOUCH_TARGETS=true' /tmp/mobile.txt && grep -q 'SINGLE_COLUMN_MOBILE=true' /tmp/mobile.txt && grep -q 'SKILL_CARDS_COMPLETE=true' /tmp/mobile.txt && grep -q 'ERRORS=</pre>' /tmp/mobile.txt
+            MOBILE=$?
+            echo "MOBILE_GATE_EXIT=$MOBILE" | tee -a /tmp/gate-summary.txt
+            for K in GOAL3_MOBILE_OK VIEWPORT NO_HORIZONTAL_OVERFLOW TOUCH_TARGETS SINGLE_COLUMN_MOBILE SKILL_CARDS_COMPLETE; do grep -o "$K=[^<]*" /tmp/mobile.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; done
+
+            timeout 75s "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=65000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3soak=1&seed=13371337' >/tmp/soak.txt 2>/tmp/soak.err
+            SOAK_CHROME=$?
+            grep -q 'GOAL3_SOAK_OK=true' /tmp/soak.txt && grep -q 'STALLS=0' /tmp/soak.txt && grep -q 'CAST_COVERAGE=true' /tmp/soak.txt && grep -q 'LOADOUT_COVERAGE=true' /tmp/soak.txt && grep -q 'ERRORS=</pre>' /tmp/soak.txt
+            SOAK=$?
+            echo "SOAK_CHROME_EXIT=$SOAK_CHROME" | tee -a /tmp/gate-summary.txt
+            echo "SOAK_GATE_EXIT=$SOAK" | tee -a /tmp/gate-summary.txt
+            for K in GOAL3_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS CAST_COVERAGE LOADOUT_COVERAGE CASTS; do grep -o "$K=[^<]*" /tmp/soak.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; done
+
             "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/goal2.txt 2>/tmp/goal2.err
             grep -q 'SELFTEST_OK=true' /tmp/goal2.txt && grep -q 'ERRORS=</pre>' /tmp/goal2.txt
             GOAL2=$?
             echo "GOAL2_REGRESSION_EXIT=$GOAL2" | tee -a /tmp/gate-summary.txt
-            grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2.txt | tee -a /tmp/gate-summary.txt
+            grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
 
             echo '== public production ==' | tee -a /tmp/gate-summary.txt
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=15000 --dump-dom "${GOAL3_PRODUCTION_URL}/?goal3test=1&seed=13371337&v=goal3-10" >/tmp/prod-g3.txt 2>/tmp/prod-g3.err
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=15000 --dump-dom "${GOAL3_PRODUCTION_URL}/?goal3test=1&seed=13371337&v=goal3-live" >/tmp/prod-g3.txt 2>/tmp/prod-g3.err
             grep -q 'GOAL3_TEST_OK=true' /tmp/prod-g3.txt && grep -q 'SCHEMA_VALID=true' /tmp/prod-g3.txt && grep -q 'REQUIRED_TAGS=true' /tmp/prod-g3.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/prod-g3.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/prod-g3.txt && grep -q 'ERRORS=</pre>' /tmp/prod-g3.txt
             PROD_G3=$?
             echo "PRODUCTION_GOAL3_GATE_EXIT=$PROD_G3" | tee -a /tmp/gate-summary.txt
             grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/prod-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
 
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom "${GOAL3_PRODUCTION_URL}/?seed=13371337&v=goal3-10" >/tmp/prod-ui.txt 2>/tmp/prod-ui.err
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom "${GOAL3_PRODUCTION_URL}/?seed=13371337&v=goal3-live" >/tmp/prod-ui.txt 2>/tmp/prod-ui.err
             grep -q 'id="skillLabBtn"' /tmp/prod-ui.txt && grep -q 'CORE SKILL SYSTEM' /tmp/prod-ui.txt && grep -q '>SKILLS<' /tmp/prod-ui.txt
             PROD_UI=$?
             echo "PRODUCTION_UI_EXIT=$PROD_UI" | tee -a /tmp/gate-summary.txt
-
-            if [ "$PROD_G3" -ne 0 ] || [ "$PROD_UI" -ne 0 ]; then
-              echo '-- production DOM tail --' | tee -a /tmp/gate-summary.txt
-              tail -c 3500 /tmp/prod-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
-              echo '-- production chrome stderr --' | tee -a /tmp/gate-summary.txt
-              tail -50 /tmp/prod-g3.err 2>/dev/null | tee -a /tmp/gate-summary.txt
-            fi
           fi
 
           kill "$SERVER_PID" 2>/dev/null || true
-          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$CHROME" ] && [ "$SERVER" -eq 0 ] && [ "$LOCAL_G3" -eq 0 ] && [ "$LOCAL_UI" -eq 0 ] && [ "$GOAL2" -eq 0 ] && [ "$PROD_G3" -eq 0 ] && [ "$PROD_UI" -eq 0 ]; then
+          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$CHROME" ] && [ "$SERVER" -eq 0 ] && [ "$LOCAL_G3" -eq 0 ] && [ "$LOCAL_UI" -eq 0 ] && [ "$MOBILE" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$GOAL2" -eq 0 ] && [ "$PROD_G3" -eq 0 ] && [ "$PROD_UI" -eq 0 ]; then
             echo 'FINAL_GATE=PASS' | tee -a /tmp/gate-summary.txt
             exit 0
           fi
           echo 'FINAL_GATE=FAIL' | tee -a /tmp/gate-summary.txt
+          if [ "$LOCAL_G3" -ne 0 ]; then tail -c 3000 /tmp/local-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; fi
+          if [ "$MOBILE" -ne 0 ]; then tail -c 2500 /tmp/mobile.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; fi
+          if [ "$SOAK" -ne 0 ]; then tail -c 3500 /tmp/soak.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; fi
           exit 1
 
       - name: Publish browser-gate result
