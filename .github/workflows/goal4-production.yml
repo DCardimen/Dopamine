@@ -1,0 +1,65 @@
+name: Goal 04 Public Production Gate
+
+on:
+  push:
+    branches: [main]
+    paths: ['index.html','.github/workflows/goal4-production.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public Goal 04 production
+        id: gate
+        continue-on-error: true
+        run: |
+          set +e; : >/tmp/g4public.txt
+          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"; BASE='https://dopamine-playtest.vercel.app/'
+          echo "CHROME=$C" | tee -a /tmp/g4public.txt; [ -n "$C" ] && "$C" --version | tee -a /tmp/g4public.txt
+          SHELL=99; UI=99; MATRIX=99; PROG=99; HOUR=99
+          curl -fsSL "$BASE?v=goal4-10" >/tmp/shell
+          grep -q 'Dopamine — Goal 04 v1.0' /tmp/shell && grep -q "bcf5acc3764434c58aaa910ea1bb27f87a65e355" /tmp/shell; SHELL=$?
+          echo "PUBLIC_SHELL_EXIT=$SHELL" | tee -a /tmp/g4public.txt
+          if [ "$SHELL" -eq 0 ] && [ -n "$C" ]; then
+            timeout 90s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=55000 --dump-dom "${BASE}?goal4finalui=1&seed=22994417&v=goal4-10" >/tmp/ui 2>/tmp/e
+            grep -q 'GOAL4_FINAL_UI_OK=true' /tmp/ui && grep -q 'ARSENAL_CARDS=30' /tmp/ui && grep -q 'LOOT_BOTTOM_RIGHT=true' /tmp/ui && grep -q 'COMPARE_POPUP_BOTTOM_RIGHT=true' /tmp/ui && grep -q 'COMPARE_DELTA_COLUMNS=3' /tmp/ui && grep -q 'VISUAL_ACTIVE=true' /tmp/ui && grep -q 'ERRORS=</pre>' /tmp/ui; UI=$?
+            echo "PUBLIC_UI_EXIT=$UI" | tee -a /tmp/g4public.txt
+            for K in GOAL4_FINAL_UI_OK ARSENAL_CARDS LOOT_BOTTOM_RIGHT COMPARE_POPUP_BOTTOM_RIGHT COMPARE_DELTA_COLUMNS LOOT_FONT_PX COMPARE_FONT_PX VISUAL_FAMILIES VISUAL_ACTIVE SMART_PRESETS SEARCH_FAVORITES_BUILD_LIBRARY SAVE_BACKUP_SMART_DISCOVERY ERRORS; do grep -o "$K=[^<]*" /tmp/ui | head -1 | tee -a /tmp/g4public.txt; done
+
+            timeout 200s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=170000 --dump-dom "${BASE}?goal4finalmatrix=1&seed=22994417&v=goal4-10" >/tmp/matrix 2>/tmp/e
+            grep -q 'GOAL4_FINAL_MATRIX_OK=true' /tmp/matrix && grep -q 'MATRIX_ROOMS=300' /tmp/matrix && grep -q 'STALLS=0' /tmp/matrix && grep -q 'CAST_COVERAGE=true' /tmp/matrix && grep -q 'ERRORS=</pre>' /tmp/matrix; MATRIX=$?
+            echo "PUBLIC_MATRIX_EXIT=$MATRIX" | tee -a /tmp/g4public.txt
+            for K in GOAL4_FINAL_MATRIX_OK MATRIX_ROOMS MATRIX_STEPS STALLS MIN_WIN_RATE MAX_WIN_RATE CAST_COVERAGE ERRORS; do grep -o "$K=[^<]*" /tmp/matrix | head -1 | tee -a /tmp/g4public.txt; done
+
+            timeout 140s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=120000 --dump-dom "${BASE}?goal4finalprogressionv2=1&seed=4477331&v=goal4-10" >/tmp/prog 2>/tmp/e
+            grep -q 'GOAL4_FINAL_PROGRESSION_V2_OK=true' /tmp/prog && grep -q 'DISCOVERED=30/30' /tmp/prog && grep -q 'STALLS=0' /tmp/prog && grep -q 'ERRORS=</pre>' /tmp/prog; PROG=$?
+            echo "PUBLIC_PROGRESSION_EXIT=$PROG" | tee -a /tmp/g4public.txt
+            for K in GOAL4_FINAL_PROGRESSION_V2_OK DISCOVERED SIM_SECONDS STEPS ROOMS MAX_DEPTH ALL_UNLOCK_SECONDS STALLS ERRORS; do grep -o "$K=[^<]*" /tmp/prog | head -1 | tee -a /tmp/g4public.txt; done
+
+            timeout 200s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=160000 --dump-dom "${BASE}?goal4finalhour=1&seed=38118421&v=goal4-10" >/tmp/hour 2>/tmp/e
+            grep -q 'GOAL4_FINAL_HOUR_OK=true' /tmp/hour && grep -q 'SIM_SECONDS=3600' /tmp/hour && grep -q 'STALLS=0' /tmp/hour && grep -q 'CAST_COVERAGE=true' /tmp/hour && grep -q 'ERRORS=</pre>' /tmp/hour; HOUR=$?
+            echo "PUBLIC_1H_EXIT=$HOUR" | tee -a /tmp/g4public.txt
+            for K in GOAL4_FINAL_HOUR_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS TRUNCATED_FINAL_ROOMS CAST_COVERAGE STALL_INFO ERRORS; do grep -o "$K=[^<]*" /tmp/hour | head -1 | tee -a /tmp/g4public.txt; done
+          fi
+          if [ "$SHELL" -eq 0 ] && [ "$UI" -eq 0 ] && [ "$MATRIX" -eq 0 ] && [ "$PROG" -eq 0 ] && [ "$HOUR" -eq 0 ]; then echo 'GOAL4_PUBLIC_FINAL=PASS' | tee -a /tmp/g4public.txt; exit 0; fi
+          echo 'GOAL4_PUBLIC_FINAL=FAIL' | tee -a /tmp/g4public.txt
+          for F in ui matrix prog hour; do echo "--- $F tail ---" | tee -a /tmp/g4public.txt; tail -c 7000 "/tmp/$F" 2>/dev/null | tee -a /tmp/g4public.txt; done
+          exit 1
+      - name: Publish public report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          { echo "### Goal 04 — public Vercel production gate ${OUTCOME^^}"; echo; echo "Commit: \`${GITHUB_SHA}\`"; echo; echo '```text'; cat /tmp/g4public.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
+          gh issue comment 5 --body-file /tmp/report.md
+      - name: Enforce
+        if: steps.gate.outcome != 'success'
+        run: exit 1
