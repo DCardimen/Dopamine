@@ -1,0 +1,85 @@
+name: Goal 03 Browser Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'goal3/**'
+      - 'playtest/**'
+      - '.github/workflows/goal3-browser-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  browser-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check Goal 03
+        run: node --check goal3/skills.js
+
+      - name: Build direct browser harness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path('playtest/index.html').read_text()
+          assert '</body>' in src
+          src = src.replace('</body>', '<script src="/goal3/skills.js?v=1"></script></body>')
+          Path('goal3-test.html').write_text(src)
+          PY
+
+      - name: Start local server
+        run: |
+          python3 -m http.server 4173 >/tmp/dopamine-http.log 2>&1 &
+          echo $! > /tmp/dopamine-http.pid
+          sleep 1
+
+      - name: Locate Chrome
+        id: chrome
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -n "$CHROME"
+          echo "bin=$CHROME" >> "$GITHUB_OUTPUT"
+          "$CHROME" --version
+
+      - name: Goal 03 architecture browser self-test
+        run: |
+          CHROME='${{ steps.chrome.outputs.bin }}'
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom 'http://127.0.0.1:4173/goal3-test.html?goal3test=1&seed=13371337' > /tmp/goal3-test.txt
+          cat /tmp/goal3-test.txt
+          grep -q 'GOAL3_TEST_OK=true' /tmp/goal3-test.txt
+          grep -q 'SCHEMA_VALID=true' /tmp/goal3-test.txt
+          grep -q 'REQUIRED_TAGS=true' /tmp/goal3-test.txt
+          grep -q 'DELIVERY_COMPONENTS=true' /tmp/goal3-test.txt
+          grep -q 'COMPONENT_SMOKE=true' /tmp/goal3-test.txt
+          grep -q 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=true' /tmp/goal3-test.txt
+          grep -q 'ERRORS=</pre>' /tmp/goal3-test.txt
+
+      - name: Goal 03 normal UI boot
+        run: |
+          CHROME='${{ steps.chrome.outputs.bin }}'
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:4173/goal3-test.html?seed=13371337' > /tmp/goal3-ui.txt
+          grep -q 'id="skillLabBtn"' /tmp/goal3-ui.txt
+          grep -q 'CORE SKILL SYSTEM' /tmp/goal3-ui.txt
+          grep -q '>SKILLS<' /tmp/goal3-ui.txt
+
+      - name: Goal 02 regression gate
+        run: |
+          CHROME='${{ steps.chrome.outputs.bin }}'
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' > /tmp/goal2-test.txt
+          cat /tmp/goal2-test.txt
+          grep -q 'SELFTEST_OK=true' /tmp/goal2-test.txt
+          grep -q 'ERRORS=</pre>' /tmp/goal2-test.txt
+
+      - name: Report
+        if: always()
+        run: |
+          echo '--- Goal 03 ---'
+          grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+          grep -o 'SCHEMA_VALID=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+          grep -o 'REQUIRED_TAGS=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+          grep -o 'DELIVERY_COMPONENTS=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+          grep -o 'COMPONENT_SMOKE=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+          echo '--- Goal 02 ---'
+          grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2-test.txt 2>/dev/null || true
