@@ -1,0 +1,93 @@
+name: Goal 03 v1.3 Public Production Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/goal3-v13-public.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  PROD: https://dopamine-playtest.vercel.app
+
+jobs:
+  public-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test public Goal 03 v1.3
+        id: gate
+        continue-on-error: true
+        run: |
+          set +e
+          : > /tmp/public.txt
+          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          echo "CHROME=$C" | tee -a /tmp/public.txt
+          [ -n "$C" ] && "$C" --version | tee -a /tmp/public.txt
+          curl -fsS "$PROD/?v=goal3-13" | grep -q 'Goal 03 v1.3'
+          SHELL=$?
+          echo "PUBLIC_V13_SHELL_EXIT=$SHELL" | tee -a /tmp/public.txt
+
+          CORE=99; SIGN=99; FRESH=99; DIV=99; SOAK=99; MULTI=99
+          if [ -n "$C" ] && [ "$SHELL" -eq 0 ]; then
+            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=18000 --dump-dom "$PROD/?goal3test=1&seed=13371337&v=goal3-13" >/tmp/core 2>/tmp/e
+            grep -q 'GOAL3_TEST_OK=true' /tmp/core && grep -q 'COMPONENT_SMOKE=true' /tmp/core && grep -q 'ERRORS=</pre>' /tmp/core
+            CORE=$?
+            echo "PUBLIC_CORE_EXIT=$CORE" | tee -a /tmp/public.txt
+
+            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=18000 --dump-dom "$PROD/?goal3signofftest=1&seed=13371337&v=goal3-13" >/tmp/sign 2>/tmp/e
+            grep -q 'GOAL3_SIGNOFF_TEST_OK=true' /tmp/sign && grep -q 'COLLECTION_VIEW=true' /tmp/sign && grep -q 'SMART_PRESETS=true' /tmp/sign && grep -q 'LEVEL20_CAPSTONES=true' /tmp/sign && grep -q 'SAVE_SCHEMA_V13=true' /tmp/sign && grep -q 'ERRORS=</pre>' /tmp/sign
+            SIGN=$?
+            echo "PUBLIC_SIGNOFF_UI_EXIT=$SIGN" | tee -a /tmp/public.txt
+            for K in GOAL3_SIGNOFF_TEST_OK MASTERY_TRACKS LEVEL20_CAPSTONES COLLECTION_VIEW SMART_PRESETS DROP_HISTORY BRAIN_DESCRIPTIONS TAP_TO_SLOT COOLDOWN_RADIALS CAST_BAR WORLD_LOOT UPGRADE_COMPARE SAVE_SCHEMA_V13 BUILD_WARNINGS; do grep -o "$K=[^<]*" /tmp/sign | head -1 | tee -a /tmp/public.txt; done
+
+            timeout 110s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=90000 --dump-dom "$PROD/?goal3freshbenchmark=1&seed=4477331&v=goal3-13" >/tmp/fresh 2>/tmp/e
+            grep -q 'GOAL3_FRESH_BENCHMARK_OK=true' /tmp/fresh && grep -q 'STALLS=0' /tmp/fresh && grep -q 'DISCOVERED=7/7' /tmp/fresh && grep -q 'ERRORS=</pre>' /tmp/fresh
+            FRESH=$?
+            echo "PUBLIC_FRESH_30M_EXIT=$FRESH" | tee -a /tmp/public.txt
+            for K in GOAL3_FRESH_BENCHMARK_OK SIM_SECONDS STEPS ROOMS STALLS FIRST_NEW_SKILL FOUR_SKILLS FIRST_MASTERY ALL_SKILLS FIRST_HIGH_ROLL MAX_DROP_DRY_SECONDS DISCOVERED UNLOCK_TIMES; do grep -o "$K=[^<]*" /tmp/fresh | head -1 | tee -a /tmp/public.txt; done
+
+            timeout 125s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=105000 --dump-dom "$PROD/?goal3diversity=1&seed=728811&v=goal3-13" >/tmp/div 2>/tmp/e
+            grep -q 'GOAL3_DIVERSITY_OK=true' /tmp/div && grep -q 'ALL_BUILDS_VIABLE=true' /tmp/div && grep -q 'TOTAL_STALLS=0' /tmp/div && grep -q 'ERRORS=</pre>' /tmp/div
+            DIV=$?
+            echo "PUBLIC_DIVERSITY_EXIT=$DIV" | tee -a /tmp/public.txt
+            grep -Eo '(GOAL3_DIVERSITY_OK|ALL_BUILDS_VIABLE|TOTAL_STALLS|MELEE|RANGED|CONTROL|SUMMON|MOVEMENT|MIXED)=[^<]*' /tmp/div | tee -a /tmp/public.txt
+
+            timeout 110s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=90000 --dump-dom "$PROD/?goal3skillsoak=1&seed=22994417&v=goal3-13" >/tmp/soak 2>/tmp/e
+            grep -q 'GOAL3_SKILL_SOAK_OK=true' /tmp/soak && grep -q 'SIM_SECONDS=3600' /tmp/soak && grep -q 'STALLS=0' /tmp/soak && grep -q 'ERRORS=</pre>' /tmp/soak
+            SOAK=$?
+            echo "PUBLIC_1H_SOAK_EXIT=$SOAK" | tee -a /tmp/public.txt
+            for K in GOAL3_SKILL_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS DROPS UPGRADES MAX_SKILL_LEVEL CASTS STALL_INFO; do grep -o "$K=[^<]*" /tmp/soak | head -1 | tee -a /tmp/public.txt; done
+
+            timeout 190s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=170000 --dump-dom "$PROD/?goal3multisoak=1&v=goal3-13" >/tmp/multi 2>/tmp/e
+            grep -q 'GOAL3_MULTI_SOAK_OK=true' /tmp/multi && grep -q 'RUNS=3' /tmp/multi && grep -q 'CONSISTENT_PACING=true' /tmp/multi && grep -q 'ERRORS=</pre>' /tmp/multi
+            MULTI=$?
+            echo "PUBLIC_THREE_HOUR_MULTI_SEED_EXIT=$MULTI" | tee -a /tmp/public.txt
+            for K in GOAL3_MULTI_SOAK_OK RUNS TOTAL_SIM_SECONDS TOTAL_STEPS CONSISTENT_PACING DROP_SPREAD ALL_UNLOCK_SPREAD_SECONDS RUN1 RUN2 RUN3; do grep -o "$K=[^<]*" /tmp/multi | head -1 | tee -a /tmp/public.txt; done
+          fi
+
+          if [ "$SHELL" -eq 0 ] && [ "$CORE" -eq 0 ] && [ "$SIGN" -eq 0 ] && [ "$FRESH" -eq 0 ] && [ "$DIV" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$MULTI" -eq 0 ]; then
+            echo 'PUBLIC_FINAL_GATE=PASS' | tee -a /tmp/public.txt
+            exit 0
+          fi
+          echo 'PUBLIC_FINAL_GATE=FAIL' | tee -a /tmp/public.txt
+          for F in core sign fresh div soak multi; do echo "--- $F ---" | tee -a /tmp/public.txt; tail -c 4500 "/tmp/$F" 2>/dev/null | tee -a /tmp/public.txt; done
+          exit 1
+
+      - name: Publish public production result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          { echo "### Goal 03 v1.3 PUBLIC production signoff — ${OUTCOME^^}"; echo; echo "Commit: \`${GITHUB_SHA}\`"; echo; echo '```text'; cat /tmp/public.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
+          gh issue comment 4 --body-file /tmp/report.md
+
+      - name: Enforce public gate
+        if: steps.gate.outcome != 'success'
+        run: exit 1
