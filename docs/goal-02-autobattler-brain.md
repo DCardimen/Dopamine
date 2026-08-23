@@ -5,6 +5,9 @@ Turn the player from a spectator into the **architect of combat behavior**. The 
 
 Goal 02 passes only when two different brain configurations produce visibly and measurably different combat on the **same deterministic room**.
 
+## Status
+**IN PROGRESS — v1.1 fixes the first major human-playtest failures. Goal 02 remains open for further feel validation.**
+
 ## Goal 02 v1 — Brain Lab
 The browser playtest includes a mobile-first **BRAIN** editor that pauses combat while tactics are edited.
 
