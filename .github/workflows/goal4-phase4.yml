@@ -1,0 +1,59 @@
+name: Goal 04 Phase 4 Retest
+
+on:
+  push:
+    branches: [main]
+    paths: ['goal4/**','.github/workflows/goal4-phase4.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  phase4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Phase 4 retest
+        id: gate
+        continue-on-error: true
+        run: |
+          set +e; : >/tmp/g4p4.txt
+          SYNTAX=0; for F in goal4/catalog.js goal4/runtime.js goal4/fun-pass.js goal4/quality-phase4.js; do node --check "$F" || SYNTAX=1; done
+          echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/g4p4.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('playtest/index.html').read_text()
+          g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
+          g4=['catalog.js','runtime.js','fun-pass.js','quality-phase4.js']
+          scripts=''.join(f'<script src="/goal3/{f}?v=4p4"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=4p4"></script>' for f in g4)
+          Path('playtest/goal4-phase4.html').write_text(src.replace('</body>',scripts+'</body>'))
+          PY
+          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"; echo "CHROME=$C" | tee -a /tmp/g4p4.txt
+          python3 -m http.server 4173 >/tmp/http.log 2>&1 & HP=$!; sleep 1; UI=99; SOAK=99
+          if [ "$SYNTAX" -eq 0 ] && [ -n "$C" ]; then
+            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=18000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-phase4.html?goal4phase4ui=1&seed=13371337' >/tmp/ui 2>/tmp/e
+            grep -q 'GOAL4_PHASE4_UI_OK=true' /tmp/ui && grep -q 'ARSENAL_CARDS=30' /tmp/ui && grep -q 'FUN_IMPROVEMENTS=20' /tmp/ui && grep -q 'ERRORS=</pre>' /tmp/ui; UI=$?; echo "PHASE4_UI_EXIT=$UI" | tee -a /tmp/g4p4.txt
+            for K in GOAL4_PHASE4_UI_OK ARSENAL_CARDS DROP_BOTTOM_RIGHT DROP_TEXT_COMPACT FUN_IMPROVEMENTS MASTERY_TRACKS EXCEPTION ERRORS; do grep -o "$K=[^<]*" /tmp/ui | head -1 | tee -a /tmp/g4p4.txt; done
+
+            timeout 180s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=150000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-phase4.html?goal4phase4=1&seed=22994417' >/tmp/soak 2>/tmp/e
+            grep -q 'GOAL4_PHASE4_OK=true' /tmp/soak && grep -q 'SIM_SECONDS=3600' /tmp/soak && grep -q 'STALLS=0' /tmp/soak && grep -q 'CAST_COVERAGE=true' /tmp/soak && grep -q 'ERRORS=</pre>' /tmp/soak; SOAK=$?; echo "PHASE4_1H_EXIT=$SOAK" | tee -a /tmp/g4p4.txt
+            for K in GOAL4_PHASE4_OK SIM_SECONDS STEPS ROOMS WINS LOSSES OVERALL_WIN_RATE MIN_BUILD_WIN_RATE MAX_BUILD_WIN_RATE STALLS CAST_COVERAGE CASTS STALL_INFO ERRORS; do grep -o "$K=[^<]*" /tmp/soak | head -1 | tee -a /tmp/g4p4.txt; done
+            grep -Eo 'BUILD[0-9]+=[^<]*' /tmp/soak | tee -a /tmp/g4p4.txt
+          fi
+          kill "$HP" 2>/dev/null || true
+          if [ "$UI" -eq 0 ] && [ "$SOAK" -eq 0 ]; then echo 'PHASE4_FINAL=PASS' | tee -a /tmp/g4p4.txt; exit 0; fi
+          echo 'PHASE4_FINAL=FAIL' | tee -a /tmp/g4p4.txt; for F in ui soak; do tail -c 9000 "/tmp/$F" 2>/dev/null | tee -a /tmp/g4p4.txt; done; exit 1
+      - name: Publish Phase 4 report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          { echo "### Goal 04 Phase 4 — post-fun-pass retest ${OUTCOME^^}"; echo; echo "Commit: \`${GITHUB_SHA}\`"; echo; echo '```text'; cat /tmp/g4p4.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
+          gh issue comment 5 --body-file /tmp/report.md
+      - name: Enforce
+        if: steps.gate.outcome != 'success'
+        run: exit 1
