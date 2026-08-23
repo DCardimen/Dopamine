@@ -22,15 +22,15 @@ jobs:
         run: |
           set +e; : >/tmp/support-report.txt
           SYNTAX=0
-          for F in goal6/stage-summary.js goal6/catalog.js goal6/runtime.js goal6/ui.js goal6/quality.js; do node --check "$F" || SYNTAX=1; done
+          for F in goal6/stage-summary.js goal6/catalog.js goal6/runtime.js goal6/ui.js goal6/quality-room-compat.js goal6/quality.js; do node --check "$F" || SYNTAX=1; done
           echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/support-report.txt
           python3 - <<'PY'
           from pathlib import Path
           src=Path('playtest/index.html').read_text()
           g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
           g4=['catalog.js','runtime.js','fun-pass.js','gap-pass.js','gap-stability.js','final-polish.js']
-          g6=['stage-summary.js','catalog.js','runtime.js','ui.js','quality.js']
-          scripts=''.join(f'<script src="/goal3/{f}?v=support1"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=support1"></script>' for f in g4)+''.join(f'<script src="/goal6/{f}?v=support1"></script>' for f in g6)
+          g6=['stage-summary.js','catalog.js','runtime.js','ui.js','quality-room-compat.js','quality.js']
+          scripts=''.join(f'<script src="/goal3/{f}?v=support2"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=support2"></script>' for f in g4)+''.join(f'<script src="/goal6/{f}?v=support2"></script>' for f in g6)
           Path('playtest/support-final.html').write_text(src.replace('</body>',scripts+'</body>'))
           PY
           HARNESS=$?; echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/support-report.txt
@@ -38,28 +38,28 @@ jobs:
           python3 -m http.server 4173 >/tmp/http.log 2>&1 & HP=$!; sleep 1
           CORE=99; MOBILE=99; SOAK=99; G2=99
           if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$C" ]; then
-            timeout 90s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=60000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supporttest=1&seed=6611227' >/tmp/core 2>/tmp/e
-            grep -q 'SUPPORT_TEST_OK=true' /tmp/core && grep -q 'CATALOG_COUNT=60' /tmp/core && grep -q 'TEN_SLOT_CAP=true' /tmp/core && grep -q 'ELEVENTH_REJECTED=true' /tmp/core && grep -q 'ECHO_REPEAT_CAST=true' /tmp/core && grep -q 'CONVERSION_COLD_APPLIED=true' /tmp/core; CORE=$?
+            timeout 90s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=60000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supporttest=1&seed=6611227' >/tmp/core 2>/tmp/core.err
+            grep -q 'SUPPORT_TEST_OK=true' /tmp/core && grep -q 'CATALOG_COUNT=60' /tmp/core && grep -q 'TEN_SLOT_CAP=true' /tmp/core && grep -q 'ELEVENTH_REJECTED=true' /tmp/core && grep -q 'ECHO_REPEAT_CAST=true' /tmp/core && grep -q 'CONVERSION_COLD_APPLIED=true' /tmp/core && grep -q 'ERRORS=</pre>' /tmp/core; CORE=$?
             echo "SUPPORT_CORE_EXIT=$CORE" | tee -a /tmp/support-report.txt
-            for K in SUPPORT_TEST_OK CATALOG_COUNT CATEGORY_COUNT MIN_COMPATIBLE_PER_SKILL TEN_SLOT_CAP ELEVENTH_REJECTED COPY_ALLOCATION COOLDOWN_CHANGED CONVERSION_COLD_APPLIED ECHO_REPEAT_CAST BOSS_STAGE_DROPS SUPPORT_UI_CARDS SUPPORT_UI_SLOTS; do grep -o "$K=[^<]*" /tmp/core | head -1 | tee -a /tmp/support-report.txt; done
+            for K in SUPPORT_TEST_OK CATALOG_COUNT CATEGORY_COUNT MIN_COMPATIBLE_PER_SKILL TEN_SLOT_CAP ELEVENTH_REJECTED COPY_ALLOCATION COOLDOWN_CHANGED CONVERSION_COLD_APPLIED ECHO_REPEAT_CAST BOSS_STAGE_DROPS SUPPORT_UI_CARDS SUPPORT_UI_SLOTS ERRORS; do grep -o "$K=[^<]*" /tmp/core | head -1 | tee -a /tmp/support-report.txt; done
 
-            timeout 75s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=45000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supportmobile=1&seed=6611227' >/tmp/mobile 2>/tmp/e
-            grep -q 'SUPPORT_MOBILE_OK=true' /tmp/mobile && grep -q 'SUMMARY_VISIBLE=true' /tmp/mobile && grep -q 'PROCEED_VISIBLE=true' /tmp/mobile && grep -q 'PROCEED_TOPMOST=true' /tmp/mobile && grep -q 'SUPPORT_PANEL=true' /tmp/mobile; MOBILE=$?
+            timeout 75s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=45000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supportmobile=1&seed=6611227' >/tmp/mobile 2>/tmp/mobile.err
+            grep -q 'SUPPORT_MOBILE_OK=true' /tmp/mobile && grep -q 'SUMMARY_VISIBLE=true' /tmp/mobile && grep -q 'PROCEED_VISIBLE=true' /tmp/mobile && grep -q 'PROCEED_TOPMOST=true' /tmp/mobile && grep -q 'SUPPORT_PANEL=true' /tmp/mobile && grep -q 'ERRORS=</pre>' /tmp/mobile; MOBILE=$?
             echo "SUPPORT_MOBILE_EXIT=$MOBILE" | tee -a /tmp/support-report.txt
-            for K in SUPPORT_MOBILE_OK SUMMARY_VISIBLE SUMMARY_FOOTER_CLEARANCE PROCEED_VISIBLE PROCEED_TOPMOST PROCEED_TEXT SUPPORT_PANEL VIEWPORT; do grep -o "$K=[^<]*" /tmp/mobile | head -1 | tee -a /tmp/support-report.txt; done
+            for K in SUPPORT_MOBILE_OK SUMMARY_VISIBLE SUMMARY_FOOTER_CLEARANCE PROCEED_VISIBLE PROCEED_TOPMOST PROCEED_TEXT SUPPORT_PANEL VIEWPORT ERRORS; do grep -o "$K=[^<]*" /tmp/mobile | head -1 | tee -a /tmp/support-report.txt; done
 
-            timeout 210s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=180000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supportsoak=1&seed=38118421' >/tmp/soak 2>/tmp/e
-            grep -q 'SUPPORT_SOAK_OK=true' /tmp/soak && grep -q 'SIM_SECONDS=3600' /tmp/soak && grep -q 'STALLS=0' /tmp/soak && grep -q 'CAST_COVERAGE=true' /tmp/soak && grep -q 'SUPPORT_COVERAGE=true' /tmp/soak; SOAK=$?
+            timeout 210s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=180000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supportsoak=1&seed=38118421' >/tmp/soak 2>/tmp/soak.err
+            grep -q 'SUPPORT_SOAK_OK=true' /tmp/soak && grep -q 'SIM_SECONDS=3600' /tmp/soak && grep -q 'STALLS=0' /tmp/soak && grep -q 'CAST_COVERAGE=true' /tmp/soak && grep -q 'SUPPORT_COVERAGE=true' /tmp/soak && grep -q 'ERRORS=</pre>' /tmp/soak; SOAK=$?
             echo "SUPPORT_1H_EXIT=$SOAK" | tee -a /tmp/support-report.txt
-            for K in SUPPORT_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS TRUNCATED_FINAL_ROOMS CAST_COVERAGE SUPPORT_COVERAGE SUPPORT_DROPS CASTS STALL_INFO; do grep -o "$K=[^<]*" /tmp/soak | head -1 | tee -a /tmp/support-report.txt; done
+            for K in SUPPORT_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS TRUNCATED_FINAL_ROOMS CAST_COVERAGE SUPPORT_COVERAGE SUPPORT_DROPS CASTS STALL_INFO ERRORS; do grep -o "$K=[^<]*" /tmp/soak | head -1 | tee -a /tmp/support-report.txt; done
 
-            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/g2 2>/tmp/e
+            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/g2 2>/tmp/g2.err
             grep -q 'SELFTEST_OK=true' /tmp/g2 && grep -q 'ERRORS=</pre>' /tmp/g2; G2=$?; echo "GOAL2_REGRESSION_EXIT=$G2" | tee -a /tmp/support-report.txt
           fi
           kill "$HP" 2>/dev/null || true
           if [ "$CORE" -eq 0 ] && [ "$MOBILE" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$G2" -eq 0 ]; then echo 'SUPPORT_FINAL=PASS' | tee -a /tmp/support-report.txt; exit 0; fi
           echo 'SUPPORT_FINAL=FAIL' | tee -a /tmp/support-report.txt
-          for F in core mobile soak; do echo "--- $F tail ---" | tee -a /tmp/support-report.txt; tail -c 10000 "/tmp/$F" 2>/dev/null | tee -a /tmp/support-report.txt; done
+          for F in core mobile soak; do echo "--- $F tail ---" | tee -a /tmp/support-report.txt; tail -c 10000 "/tmp/$F" 2>/dev/null | tee -a /tmp/support-report.txt; echo "--- $F stderr ---" | tee -a /tmp/support-report.txt; tail -c 3000 "/tmp/$F.err" 2>/dev/null | tee -a /tmp/support-report.txt; done
           exit 1
       - name: Publish support report
         if: always()
