@@ -6,7 +6,7 @@ Turn the player from a spectator into the **architect of combat behavior**. The 
 Goal 02 passes only when two different brain configurations produce visibly and measurably different combat on the **same deterministic room**.
 
 ## Goal 02 v1 — Brain Lab
-The browser playtest now includes a mobile-first **BRAIN** editor that pauses combat while tactics are edited.
+The browser playtest includes a mobile-first **BRAIN** editor that pauses combat while tactics are edited.
 
 ### Preset brains
 - **Berserker** — execute-focused, aggressive chase, very late retreat.
@@ -32,12 +32,37 @@ The browser playtest now includes a mobile-first **BRAIN** editor that pauses co
 15. Apply without restarting combat.
 16. Apply + replay the exact same deterministic room.
 
+## Goal 02 v1.1 — Adaptation / reliability pass
+This pass responds directly to playtest failures around wall sticking, endless pursuit, and missed skill opportunities.
+
+### Anti-stuck navigation
+- Steering now adds a strong inward bias near all arena borders instead of allowing retreat/kite vectors to continuously push outward.
+- Outward velocity is reflected/damped when the player reaches a hard boundary.
+- A movement watchdog detects meaningful intent with near-zero movement for ~0.55s and applies a deterministic escape route away from the wall/nearest obstacle.
+- Combat telemetry records **Unstuck recoveries**.
+
+### Adaptive pursuit
+New Brain controls:
+- **Adapt when a target keeps escaping** toggle.
+- **No-progress timeout** from 1.5–8 seconds.
+- Fallback strategy: **Hybrid**, **Switch target**, or **Intercept / cut off**.
+
+The brain tracks whether distance to its current target is actually improving. If not, it can temporarily blacklist the target and select another enemy, or predict the evasive target's movement and cut it off rather than following directly.
+
+### Reliable skill scheduler
+- Ready AoE skills now evaluate **before retreat behavior**. If Ground Slam/Whirlwind is ready and its configured target-count condition is satisfied, it fires immediately instead of being skipped because the brain wanted to back away.
+- Skill priority still controls which valid skill fires first.
+- The HUD now distinguishes cooldown availability from tactical eligibility: e.g. **WAIT 2/4** instead of misleadingly showing **READY** when Ground Slam requires four targets.
+
 ## Brain telemetry
-The combat report now records:
+The combat report records:
 - Brain/profile name
 - Targeting mode and stance
+- Adaptive pursuit mode / timeout
 - Seed/depth
 - Target switches
+- Adaptive strategy changes
+- Unstuck recoveries
 - Brain decision changes
 - Retreat events
 - Cover movements
@@ -49,23 +74,20 @@ The combat report now records:
 ## Deterministic comparison loop
 Every depth is generated from `base seed + depth`. **Replay Same** regenerates the identical enemy composition and obstacle layout, allowing apples-to-apples comparison between different brains.
 
-## Initial automated test
-Local mobile Chromium harness, seed `424242`:
+## v1.1 automated regression test
+Local JavaScript simulation harness, seed `424242`:
 - `SELFTEST_OK=true`
-- 4 behavior profiles exercised
+- 4 profiles exercised
 - 4 unique decision signatures
-- First-kill P90: `0.91s`
-- Maximum measured overlap: `1.17px`
-- Boss behavior covered
-- Projectile behavior covered
-- 4,179 simulation steps
-- Runtime/page errors: 0
-
-Example signatures from the test harness:
-- Berserker: high target switching, almost no retreat
-- Balanced: moderate retreat and cover use
-- Tactician: early survival behavior
-- Kiter: cover-heavy / spacing-heavy behavior
+- First-kill P90: `1.29s`
+- Maximum measured overlap: `0.00px`
+- Boss coverage: PASS
+- Projectile coverage: PASS
+- **Adaptive pursuit regression: PASS**
+- **Forced edge escape regression: PASS**
+- **Ready-skill immediate-cast regression: PASS**
+- 6,389 simulation steps
+- Runtime errors: 0
 
 ## Acceptance tests
 - [x] Player can open the Brain editor on a phone without leaving the playtest.
@@ -80,6 +102,12 @@ Example signatures from the test harness:
 - [x] Player can enable/disable terrain-cover behavior.
 - [x] Player can reorder skill priority.
 - [x] Player can set AoE minimum-target rules.
+- [x] Player can configure adaptation to evasive/uncatchable targets.
+- [x] Player has switch-target and intercept fallback behavior.
+- [x] Boundary steering actively prevents prolonged wall pinning.
+- [x] Anti-stuck watchdog recovers from forced zero-progress edge movement.
+- [x] A ready AoE with its condition satisfied casts before ordinary retreat logic.
+- [x] Skill HUD explains when a cooldown is ready but tactical conditions are not met.
 - [x] Brain settings persist locally.
 - [x] Brain decisions are visible during combat.
 - [x] Brain decisions are summarized after combat.
@@ -89,7 +117,7 @@ Example signatures from the test harness:
 - [ ] Stance differences are unmistakable to a human playtester without reading telemetry.
 - [ ] Skill-priority changes create obvious timing differences.
 - [ ] A custom brain can outperform a poor preset on at least one deterministic room.
-- [ ] No brain configuration creates pathological infinite retreat / no-engagement loops.
+- [ ] No brain configuration creates pathological infinite retreat / no-engagement loops in extended play.
 - [ ] Mobile controls remain comfortable after repeated editing.
 - [ ] Final Goal 02 quality score is 9/10+ in targeting, positioning, skill rules, conditional rules, readability, and replay comparison.
 
@@ -97,4 +125,4 @@ Example signatures from the test harness:
 No loot, equipment affixes, passive tree, skill gems, crafting, story, town, or permanent character progression. Goal 02 is about **behavior authoring**, not build progression.
 
 ## Next pass
-Playtest the four presets and custom rules on identical rooms, then tighten target switching, hysteresis, skill-rule clarity, and any retreat loops before closing Goal 02.
+Human playtest v1.1 on mixed ranged packs and edge-heavy rooms. Focus on whether adaptation is understandable, whether intercept looks intelligent rather than erratic, and whether skill timing now feels trustworthy.
