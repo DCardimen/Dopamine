@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Dopamine — Goal 03 Core Skill System</title>
+<title>Dopamine — Goal 03 Skill Progression</title>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05080d}
 iframe{border:0;width:100%;height:100%;display:block;background:#05080d}
@@ -11,18 +11,18 @@ iframe{border:0;width:100%;height:100%;display:block;background:#05080d}
 </style>
 </head>
 <body>
-<div id="boot">LOADING GOAL 03…</div>
+<div id="boot">LOADING GOAL 03 v1.2…</div>
 <iframe id="game" title="Dopamine Goal 03 playtest"></iframe>
 <script>
 const frame=document.getElementById('game');
 frame.src='../playtest/index.html'+location.search;
-frame.addEventListener('load',()=>{
+frame.addEventListener('load',async()=>{
   const doc=frame.contentDocument;
-  const s=doc.createElement('script');
-  s.src='/goal3/skills.js?v=1';
-  s.onload=()=>document.getElementById('boot').remove();
-  s.onerror=()=>{document.getElementById('boot').textContent='GOAL 03 PATCH FAILED TO LOAD';};
-  doc.body.appendChild(s);
+  const files=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','progression-quality.js'];
+  try{
+    for(const file of files)await new Promise((resolve,reject)=>{const s=doc.createElement('script');s.src='/goal3/'+file+'?v=12';s.onload=resolve;s.onerror=reject;doc.body.appendChild(s)});
+    document.getElementById('boot').remove();
+  }catch(e){document.getElementById('boot').textContent='GOAL 03 PATCH FAILED TO LOAD';}
 });
 </script>
 </body>
