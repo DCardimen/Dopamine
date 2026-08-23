@@ -14,7 +14,7 @@ permissions:
   issues: write
 
 env:
-  GOAL3_PREVIEW_URL: https://dopamine-playtest-4i8qylosv-dacardimen-8084s-projects.vercel.app
+  GOAL3_PRODUCTION_URL: https://dopamine-playtest.vercel.app
 
 jobs:
   browser-gate:
@@ -23,102 +23,87 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run diagnostic browser gate
+      - name: Run local and production browser gates
         id: gate
         continue-on-error: true
         run: |
           set +e
           : > /tmp/gate-summary.txt
-
-          echo '== syntax ==' | tee -a /tmp/gate-summary.txt
-          node --check goal3/skills.js >/tmp/syntax.log 2>&1
+          node --check goal3/skills.js
           SYNTAX=$?
           echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/gate-summary.txt
-          cat /tmp/syntax.log | tee -a /tmp/gate-summary.txt
 
-          echo '== harness ==' | tee -a /tmp/gate-summary.txt
-          python3 - <<'PY' >/tmp/harness.log 2>&1
+          python3 - <<'PY'
           from pathlib import Path
           src = Path('playtest/index.html').read_text()
           assert '</body>' in src
-          src = src.replace('</body>', '<script src="/goal3/skills.js?v=1"></script></body>')
-          Path('playtest/goal3-test.html').write_text(src)
+          Path('playtest/goal3-test.html').write_text(src.replace('</body>', '<script src="/goal3/skills.js?v=1"></script></body>'))
           PY
           HARNESS=$?
           echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/gate-summary.txt
-          cat /tmp/harness.log | tee -a /tmp/gate-summary.txt
 
-          echo '== chrome ==' | tee -a /tmp/gate-summary.txt
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
           echo "CHROME=$CHROME" | tee -a /tmp/gate-summary.txt
-          if [ -n "$CHROME" ]; then "$CHROME" --version 2>&1 | tee -a /tmp/gate-summary.txt; fi
+          [ -n "$CHROME" ] && "$CHROME" --version | tee -a /tmp/gate-summary.txt
 
           python3 -m http.server 4173 >/tmp/dopamine-http.log 2>&1 &
           SERVER_PID=$!
           sleep 1
-          curl -fsS http://127.0.0.1:4173/playtest/goal3-test.html >/tmp/server-check.html
+          curl -fsS http://127.0.0.1:4173/playtest/goal3-test.html >/dev/null
           SERVER=$?
           echo "SERVER_EXIT=$SERVER" | tee -a /tmp/gate-summary.txt
 
-          G3=99
-          UI=99
-          G2=99
-          PREVIEW_G3=99
-          PREVIEW_UI=99
+          LOCAL_G3=99; LOCAL_UI=99; GOAL2=99; PROD_G3=99; PROD_UI=99
           if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$CHROME" ] && [ "$SERVER" -eq 0 ]; then
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3test=1&seed=13371337' >/tmp/goal3-test.txt 2>/tmp/goal3-chrome.err
-            CHROME_G3=$?
-            grep -q 'GOAL3_TEST_OK=true' /tmp/goal3-test.txt && grep -q 'SCHEMA_VALID=true' /tmp/goal3-test.txt && grep -q 'REQUIRED_TAGS=true' /tmp/goal3-test.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/goal3-test.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/goal3-test.txt && grep -q 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=true' /tmp/goal3-test.txt && grep -q 'ERRORS=</pre>' /tmp/goal3-test.txt
-            G3=$?
-            echo "CHROME_G3_EXIT=$CHROME_G3" | tee -a /tmp/gate-summary.txt
-            echo "GOAL3_GATE_EXIT=$G3" | tee -a /tmp/gate-summary.txt
-            grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/goal3-test.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
-            grep -o 'SCHEMA_VALID=[^<]*' /tmp/goal3-test.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
-            grep -o 'REQUIRED_TAGS=[^<]*' /tmp/goal3-test.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
-            grep -o 'DELIVERY_COMPONENTS=[^<]*' /tmp/goal3-test.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
-            grep -o 'COMPONENT_SMOKE=[^<]*' /tmp/goal3-test.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
-            grep -o 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=[^<]*' /tmp/goal3-test.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3test=1&seed=13371337' >/tmp/local-g3.txt 2>/tmp/local-g3.err
+            grep -q 'GOAL3_TEST_OK=true' /tmp/local-g3.txt && grep -q 'SCHEMA_VALID=true' /tmp/local-g3.txt && grep -q 'REQUIRED_TAGS=true' /tmp/local-g3.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/local-g3.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/local-g3.txt && grep -q 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=true' /tmp/local-g3.txt && grep -q 'ERRORS=</pre>' /tmp/local-g3.txt
+            LOCAL_G3=$?
+            echo "LOCAL_GOAL3_GATE_EXIT=$LOCAL_G3" | tee -a /tmp/gate-summary.txt
+            grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
+            grep -o 'SCHEMA_VALID=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
+            grep -o 'REQUIRED_TAGS=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
+            grep -o 'DELIVERY_COMPONENTS=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
+            grep -o 'COMPONENT_SMOKE=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
+            grep -o 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=[^<]*' /tmp/local-g3.txt | tee -a /tmp/gate-summary.txt
 
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?seed=13371337' >/tmp/goal3-ui.txt 2>/tmp/goal3-ui.err
-            grep -q 'id="skillLabBtn"' /tmp/goal3-ui.txt && grep -q 'CORE SKILL SYSTEM' /tmp/goal3-ui.txt && grep -q '>SKILLS<' /tmp/goal3-ui.txt
-            UI=$?
-            echo "GOAL3_UI_EXIT=$UI" | tee -a /tmp/gate-summary.txt
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?seed=13371337' >/tmp/local-ui.txt 2>/tmp/local-ui.err
+            grep -q 'id="skillLabBtn"' /tmp/local-ui.txt && grep -q 'CORE SKILL SYSTEM' /tmp/local-ui.txt && grep -q '>SKILLS<' /tmp/local-ui.txt
+            LOCAL_UI=$?
+            echo "LOCAL_UI_EXIT=$LOCAL_UI" | tee -a /tmp/gate-summary.txt
 
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/goal2-test.txt 2>/tmp/goal2-chrome.err
-            grep -q 'SELFTEST_OK=true' /tmp/goal2-test.txt && grep -q 'ERRORS=</pre>' /tmp/goal2-test.txt
-            G2=$?
-            echo "GOAL2_GATE_EXIT=$G2" | tee -a /tmp/gate-summary.txt
-            grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2-test.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/goal2.txt 2>/tmp/goal2.err
+            grep -q 'SELFTEST_OK=true' /tmp/goal2.txt && grep -q 'ERRORS=</pre>' /tmp/goal2.txt
+            GOAL2=$?
+            echo "GOAL2_REGRESSION_EXIT=$GOAL2" | tee -a /tmp/gate-summary.txt
+            grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2.txt | tee -a /tmp/gate-summary.txt
 
-            echo '== deployed preview ==' | tee -a /tmp/gate-summary.txt
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=15000 --dump-dom "${GOAL3_PREVIEW_URL}/?goal3test=1&seed=13371337" >/tmp/preview-g3.txt 2>/tmp/preview-g3.err
-            CHROME_PREVIEW_G3=$?
-            grep -q 'GOAL3_TEST_OK=true' /tmp/preview-g3.txt && grep -q 'SCHEMA_VALID=true' /tmp/preview-g3.txt && grep -q 'REQUIRED_TAGS=true' /tmp/preview-g3.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/preview-g3.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/preview-g3.txt && grep -q 'ERRORS=</pre>' /tmp/preview-g3.txt
-            PREVIEW_G3=$?
-            echo "PREVIEW_CHROME_EXIT=$CHROME_PREVIEW_G3" | tee -a /tmp/gate-summary.txt
-            echo "PREVIEW_GOAL3_GATE_EXIT=$PREVIEW_G3" | tee -a /tmp/gate-summary.txt
-            grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/preview-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
+            echo '== public production ==' | tee -a /tmp/gate-summary.txt
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=15000 --dump-dom "${GOAL3_PRODUCTION_URL}/?goal3test=1&seed=13371337&v=goal3-10" >/tmp/prod-g3.txt 2>/tmp/prod-g3.err
+            grep -q 'GOAL3_TEST_OK=true' /tmp/prod-g3.txt && grep -q 'SCHEMA_VALID=true' /tmp/prod-g3.txt && grep -q 'REQUIRED_TAGS=true' /tmp/prod-g3.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/prod-g3.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/prod-g3.txt && grep -q 'ERRORS=</pre>' /tmp/prod-g3.txt
+            PROD_G3=$?
+            echo "PRODUCTION_GOAL3_GATE_EXIT=$PROD_G3" | tee -a /tmp/gate-summary.txt
+            grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/prod-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
 
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom "${GOAL3_PREVIEW_URL}/?seed=13371337" >/tmp/preview-ui.txt 2>/tmp/preview-ui.err
-            grep -q 'id="skillLabBtn"' /tmp/preview-ui.txt && grep -q 'CORE SKILL SYSTEM' /tmp/preview-ui.txt && grep -q '>SKILLS<' /tmp/preview-ui.txt
-            PREVIEW_UI=$?
-            echo "PREVIEW_UI_EXIT=$PREVIEW_UI" | tee -a /tmp/gate-summary.txt
-            if [ "$PREVIEW_G3" -ne 0 ] || [ "$PREVIEW_UI" -ne 0 ]; then
-              echo '-- preview DOM tail --' | tee -a /tmp/gate-summary.txt
-              tail -c 3000 /tmp/preview-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
-              echo '-- preview stderr --' | tee -a /tmp/gate-summary.txt
-              tail -40 /tmp/preview-g3.err 2>/dev/null | tee -a /tmp/gate-summary.txt
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom "${GOAL3_PRODUCTION_URL}/?seed=13371337&v=goal3-10" >/tmp/prod-ui.txt 2>/tmp/prod-ui.err
+            grep -q 'id="skillLabBtn"' /tmp/prod-ui.txt && grep -q 'CORE SKILL SYSTEM' /tmp/prod-ui.txt && grep -q '>SKILLS<' /tmp/prod-ui.txt
+            PROD_UI=$?
+            echo "PRODUCTION_UI_EXIT=$PROD_UI" | tee -a /tmp/gate-summary.txt
+
+            if [ "$PROD_G3" -ne 0 ] || [ "$PROD_UI" -ne 0 ]; then
+              echo '-- production DOM tail --' | tee -a /tmp/gate-summary.txt
+              tail -c 3500 /tmp/prod-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
+              echo '-- production chrome stderr --' | tee -a /tmp/gate-summary.txt
+              tail -50 /tmp/prod-g3.err 2>/dev/null | tee -a /tmp/gate-summary.txt
             fi
           fi
 
           kill "$SERVER_PID" 2>/dev/null || true
-          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$CHROME" ] && [ "$SERVER" -eq 0 ] && [ "$G3" -eq 0 ] && [ "$UI" -eq 0 ] && [ "$G2" -eq 0 ] && [ "$PREVIEW_G3" -eq 0 ] && [ "$PREVIEW_UI" -eq 0 ]; then
+          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$CHROME" ] && [ "$SERVER" -eq 0 ] && [ "$LOCAL_G3" -eq 0 ] && [ "$LOCAL_UI" -eq 0 ] && [ "$GOAL2" -eq 0 ] && [ "$PROD_G3" -eq 0 ] && [ "$PROD_UI" -eq 0 ]; then
             echo 'FINAL_GATE=PASS' | tee -a /tmp/gate-summary.txt
             exit 0
-          else
-            echo 'FINAL_GATE=FAIL' | tee -a /tmp/gate-summary.txt
-            exit 1
           fi
+          echo 'FINAL_GATE=FAIL' | tee -a /tmp/gate-summary.txt
+          exit 1
 
       - name: Publish browser-gate result
         if: always()
@@ -135,7 +120,6 @@ jobs:
             cat /tmp/gate-summary.txt 2>/dev/null || echo 'diagnostic summary missing'
             echo '```'
           } > /tmp/goal3-report.md
-          cat /tmp/goal3-report.md
           gh issue comment 4 --body-file /tmp/goal3-report.md
 
       - name: Enforce gate
