@@ -22,15 +22,15 @@ jobs:
         run: |
           set +e; : >/tmp/support-report.txt
           SYNTAX=0
-          for F in goal6/stage-summary.js goal6/catalog.js goal6/runtime.js goal6/slot-progression.js goal6/ui.js goal6/quality-room-compat.js goal6/quality.js goal6/quality-final.js; do node --check "$F" || SYNTAX=1; done
+          for F in goal6/stage-summary.js goal6/catalog.js goal6/runtime.js goal6/room-rollover-fix.js goal6/slot-progression.js goal6/ui.js goal6/quality-room-compat.js goal6/quality.js goal6/quality-final.js; do node --check "$F" || SYNTAX=1; done
           echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/support-report.txt
           python3 - <<'PY'
           from pathlib import Path
           src=Path('playtest/index.html').read_text()
           g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
           g4=['catalog.js','runtime.js','fun-pass.js','gap-pass.js','gap-stability.js','final-polish.js']
-          g6=['stage-summary.js','catalog.js','runtime.js','slot-progression.js','ui.js','quality-room-compat.js','quality.js','quality-final.js']
-          scripts=''.join(f'<script src="/goal3/{f}?v=support5"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=support5"></script>' for f in g4)+''.join(f'<script src="/goal6/{f}?v=support5"></script>' for f in g6)
+          g6=['stage-summary.js','catalog.js','runtime.js','room-rollover-fix.js','slot-progression.js','ui.js','quality-room-compat.js','quality.js','quality-final.js']
+          scripts=''.join(f'<script src="/goal3/{f}?v=support6"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=support6"></script>' for f in g4)+''.join(f'<script src="/goal6/{f}?v=support6"></script>' for f in g6)
           Path('playtest/support-final.html').write_text(src.replace('</body>',scripts+'</body>'))
           PY
           HARNESS=$?; echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/support-report.txt
