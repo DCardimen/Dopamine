@@ -1,0 +1,70 @@
+name: Goal 04 Final 9-of-10 Gate
+
+on:
+  push:
+    branches: [main]
+    paths: ['goal4/**','.github/workflows/goal4-final.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  final:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Goal 04 final local verification
+        id: gate
+        continue-on-error: true
+        run: |
+          set +e; : >/tmp/g4final.txt
+          FILES='catalog.js runtime.js fun-pass.js gap-pass.js gap-stability.js final-polish.js quality-final.js quality-phase5.js'; SYNTAX=0
+          for F in $FILES; do node --check "goal4/$F" || SYNTAX=1; done
+          echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/g4final.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('playtest/index.html').read_text()
+          g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
+          g4=['catalog.js','runtime.js','fun-pass.js','gap-pass.js','gap-stability.js','final-polish.js','quality-phase5.js','quality-final.js']
+          scripts=''.join(f'<script src="/goal3/{f}?v=4final"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=4final"></script>' for f in g4)
+          Path('playtest/goal4-final.html').write_text(src.replace('</body>',scripts+'</body>'))
+          PY
+          HARNESS=$?; echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/g4final.txt
+          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"; echo "CHROME=$C" | tee -a /tmp/g4final.txt; [ -n "$C" ] && "$C" --version | tee -a /tmp/g4final.txt
+          python3 -m http.server 4173 >/tmp/http.log 2>&1 & HP=$!; sleep 1; FINAL=99; PROG=99; HOUR=99; G2=99; G3=99
+          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$C" ]; then
+            timeout 180s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=170000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-final.html?goal4final=1&seed=22994417' >/tmp/final 2>/tmp/e
+            grep -q 'GOAL4_FINAL_OK=true' /tmp/final && grep -q 'COMPLETENESS_SCORE=' /tmp/final && grep -q 'SKILL_COUNT=30' /tmp/final && grep -q 'FAIR_MATRIX_STALLS=0' /tmp/final && grep -q 'VISUAL_ACTIVE=true' /tmp/final && grep -q 'ERRORS=</pre>' /tmp/final; FINAL=$?; echo "FINAL_COMPLETENESS_EXIT=$FINAL" | tee -a /tmp/g4final.txt
+            for K in GOAL4_FINAL_OK COMPLETENESS_SCORE SKILL_COUNT DISTINCT_NEW_BEHAVIORS CATALOG ROLE_COVERAGE MASTERY_AND_FUN_PASSES COMPACT_BOTTOM_RIGHT_DROP VISUAL_FAMILIES VISUAL_ACTIVE SMART_PRESETS SEARCH_FAVORITES_BUILD_LIBRARY SAVE_BACKUP SMART_DISCOVERY FAIR_BALANCE FAIR_MATRIX_STEPS FAIR_MATRIX_STALLS MIN_FAIR_WIN_RATE MAX_FAIR_WIN_RATE CAST_COVERAGE ERRORS; do grep -o "$K=[^<]*" /tmp/final | head -1 | tee -a /tmp/g4final.txt; done
+            grep -Eo 'BUILD[0-9]+=[^<]*' /tmp/final | tee -a /tmp/g4final.txt
+
+            timeout 160s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=150000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-final.html?goal4finalprogression=1&seed=4477331' >/tmp/prog 2>/tmp/e
+            grep -q 'GOAL4_FINAL_PROGRESSION_OK=true' /tmp/prog && grep -q 'DISCOVERED=30/30' /tmp/prog && grep -q 'STALLS=0' /tmp/prog && grep -q 'ERRORS=</pre>' /tmp/prog; PROG=$?; echo "FINAL_PROGRESSION_EXIT=$PROG" | tee -a /tmp/g4final.txt
+            for K in GOAL4_FINAL_PROGRESSION_OK START_OWNED DISCOVERED SIM_SECONDS STEPS ROOMS MAX_DEPTH ALL_UNLOCK_SECONDS STALLS UNLOCK_TIMES ERRORS; do grep -o "$K=[^<]*" /tmp/prog | head -1 | tee -a /tmp/g4final.txt; done
+
+            timeout 180s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=150000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-final.html?goal4phase5=1&seed=38118421' >/tmp/hour 2>/tmp/e
+            grep -q 'SIM_SECONDS=3600' /tmp/hour && grep -q 'STALLS=0' /tmp/hour && grep -q 'CAST_COVERAGE=true' /tmp/hour && grep -q 'ERRORS=</pre>' /tmp/hour; HOUR=$?; echo "FINAL_1H_STABILITY_EXIT=$HOUR" | tee -a /tmp/g4final.txt
+            for K in SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS CAST_COVERAGE CASTS STALL_INFO ERRORS; do grep -o "$K=[^<]*" /tmp/hour | head -1 | tee -a /tmp/g4final.txt; done
+
+            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/g2 2>/tmp/e
+            grep -q 'SELFTEST_OK=true' /tmp/g2 && grep -q 'ERRORS=</pre>' /tmp/g2; G2=$?; echo "GOAL2_REGRESSION_EXIT=$G2" | tee -a /tmp/g4final.txt
+            "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-final.html?goal3test=1&seed=13371337' >/tmp/g3 2>/tmp/e
+            grep -q 'GOAL3_TEST_OK=true' /tmp/g3 && grep -q 'ERRORS=</pre>' /tmp/g3; G3=$?; echo "GOAL3_REGRESSION_EXIT=$G3" | tee -a /tmp/g4final.txt
+          fi
+          kill "$HP" 2>/dev/null || true
+          if [ "$FINAL" -eq 0 ] && [ "$PROG" -eq 0 ] && [ "$HOUR" -eq 0 ] && [ "$G2" -eq 0 ] && [ "$G3" -eq 0 ]; then echo 'GOAL4_LOCAL_FINAL=PASS' | tee -a /tmp/g4final.txt; exit 0; fi
+          echo 'GOAL4_LOCAL_FINAL=FAIL' | tee -a /tmp/g4final.txt; for F in final prog hour; do tail -c 12000 "/tmp/$F" 2>/dev/null | tee -a /tmp/g4final.txt; done; exit 1
+      - name: Publish final local report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          { echo "### Goal 04 Phase 6 — final local 9/10 gate ${OUTCOME^^}"; echo; echo "Commit: \`${GITHUB_SHA}\`"; echo; echo '```text'; cat /tmp/g4final.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
+          gh issue comment 5 --body-file /tmp/report.md
+      - name: Enforce
+        if: steps.gate.outcome != 'success'
+        run: exit 1
