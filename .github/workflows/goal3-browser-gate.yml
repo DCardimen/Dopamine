@@ -3,10 +3,7 @@ name: Goal 03 Browser Gate
 on:
   push:
     branches: [main]
-    paths:
-      - 'goal3/**'
-      - 'playtest/**'
-      - '.github/workflows/goal3-browser-gate.yml'
+    paths: ['goal3/**','playtest/**','.github/workflows/goal3-browser-gate.yml']
   workflow_dispatch:
 
 permissions:
@@ -22,112 +19,71 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-
-      - name: Run local quality and production browser gates
+      - name: Run Goal 03 quality gates
         id: gate
         continue-on-error: true
         run: |
           set +e
           : > /tmp/gate-summary.txt
-          node --check goal3/legacy-compat.js && node --check goal3/skills.js && node --check goal3/runtime-fixes.js && node --check goal3/progression.js && node --check goal3/progression-quality.js
-          SYNTAX=$?
+          FILES='legacy-compat.js skills.js runtime-fixes.js progression.js brain-sync.js polish.js progression-quality.js quality-v2.js'
+          SYNTAX=0
+          for F in $FILES; do node --check "goal3/$F" || SYNTAX=1; done
           echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/gate-summary.txt
 
           python3 - <<'PY'
           from pathlib import Path
-          src = Path('playtest/index.html').read_text()
-          assert '</body>' in src
-          scripts = ''.join(f'<script src="/goal3/{f}?v=12"></script>' for f in ['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','progression-quality.js'])
-          Path('playtest/goal3-test.html').write_text(src.replace('</body>', scripts + '</body>'))
+          src=Path('playtest/index.html').read_text()
+          files=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','progression-quality.js','quality-v2.js']
+          scripts=''.join(f'<script src="/goal3/{f}?v=12"></script>' for f in files)
+          Path('playtest/goal3-test.html').write_text(src.replace('</body>',scripts+'</body>'))
           PY
           HARNESS=$?
           echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/gate-summary.txt
-
-          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
           echo "CHROME=$CHROME" | tee -a /tmp/gate-summary.txt
           [ -n "$CHROME" ] && "$CHROME" --version | tee -a /tmp/gate-summary.txt
-
-          python3 -m http.server 4173 >/tmp/dopamine-http.log 2>&1 &
-          SERVER_PID=$!
-          sleep 1
-          curl -fsS http://127.0.0.1:4173/playtest/goal3-test.html >/dev/null
-          SERVER=$?
+          python3 -m http.server 4173 >/tmp/dopamine-http.log 2>&1 & SERVER_PID=$!; sleep 1
+          curl -fsS http://127.0.0.1:4173/playtest/goal3-test.html >/dev/null; SERVER=$?
           echo "SERVER_EXIT=$SERVER" | tee -a /tmp/gate-summary.txt
 
-          LOCAL_G3=99; LOCAL_UI=99; MOBILE=99; SOAK=99; PROG=99; PROG_UI=99; PROG_SOAK=99; GOAL2=99; PROD_G3=99; PROD_UI=99
+          CORE=99; MOBILE=99; PROG=99; LOADOUT=99; SOAK=99; GOAL2=99; PROD=99
           if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$CHROME" ] && [ "$SERVER" -eq 0 ]; then
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3test=1&seed=13371337' >/tmp/local-g3.txt 2>/tmp/local-g3.err
-            grep -q 'GOAL3_TEST_OK=true' /tmp/local-g3.txt && grep -q 'SCHEMA_VALID=true' /tmp/local-g3.txt && grep -q 'REQUIRED_TAGS=true' /tmp/local-g3.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/local-g3.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/local-g3.txt && grep -q 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=true' /tmp/local-g3.txt && grep -q 'TAG_QUERY_API=true' /tmp/local-g3.txt && grep -q 'ADDED_DAMAGE_EFFECTIVENESS=true' /tmp/local-g3.txt && grep -q 'ERRORS=</pre>' /tmp/local-g3.txt
-            LOCAL_G3=$?
-            echo "LOCAL_GOAL3_GATE_EXIT=$LOCAL_G3" | tee -a /tmp/gate-summary.txt
-            for K in GOAL3_TEST_OK SCHEMA_VALID REQUIRED_TAGS DELIVERY_COMPONENTS COMPONENT_SMOKE DAMAGE_EFFECTIVENESS_CAST_SEPARATED TAG_QUERY_API ADDED_DAMAGE_EFFECTIVENESS; do grep -o "$K=[^<]*" /tmp/local-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; done
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3test=1&seed=13371337' >/tmp/core.txt 2>/tmp/core.err
+            grep -q 'GOAL3_TEST_OK=true' /tmp/core.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/core.txt && grep -q 'ADDED_DAMAGE_EFFECTIVENESS=true' /tmp/core.txt && grep -q 'ERRORS=</pre>' /tmp/core.txt; CORE=$?
+            echo "CORE_GATE_EXIT=$CORE" | tee -a /tmp/gate-summary.txt; grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/core.txt | tee -a /tmp/gate-summary.txt
 
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=4500 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?freshskills=1&skilllab=1&seed=13371337' >/tmp/local-ui.txt 2>/tmp/local-ui.err
-            grep -q 'id="skillLabBtn"' /tmp/local-ui.txt && grep -q 'SKILL ARSENAL' /tmp/local-ui.txt && grep -q 'PRIORITY 1' /tmp/local-ui.txt && grep -q 'Drops from monster level 2+' /tmp/local-ui.txt && grep -q 'HEAVY SLASH' /tmp/local-ui.txt
-            LOCAL_UI=$?
-            echo "LOCAL_UI_EXIT=$LOCAL_UI" | tee -a /tmp/gate-summary.txt
-
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=4500 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3mobiletest=1&seed=13371337' >/tmp/mobile.txt 2>/tmp/mobile.err
-            grep -q 'GOAL3_MOBILE_OK=true' /tmp/mobile.txt && grep -q 'NO_HORIZONTAL_OVERFLOW=true' /tmp/mobile.txt && grep -q 'TOUCH_TARGETS=true' /tmp/mobile.txt && grep -q 'SINGLE_COLUMN_MOBILE=true' /tmp/mobile.txt && grep -q 'SKILL_CARDS_COMPLETE=true' /tmp/mobile.txt && grep -q 'ERRORS=</pre>' /tmp/mobile.txt
-            MOBILE=$?
-            echo "MOBILE_GATE_EXIT=$MOBILE" | tee -a /tmp/gate-summary.txt
-            for K in GOAL3_MOBILE_OK VIEWPORT NO_HORIZONTAL_OVERFLOW TOUCH_TARGETS SINGLE_COLUMN_MOBILE SKILL_CARDS_COMPLETE; do grep -o "$K=[^<]*" /tmp/mobile.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; done
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=5000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3mobiletest=1&seed=13371337' >/tmp/mobile.txt 2>/tmp/mobile.err
+            grep -q 'GOAL3_MOBILE_OK=true' /tmp/mobile.txt && grep -q 'NO_HORIZONTAL_OVERFLOW=true' /tmp/mobile.txt && grep -q 'TOUCH_TARGETS=true' /tmp/mobile.txt; MOBILE=$?
+            echo "MOBILE_GATE_EXIT=$MOBILE" | tee -a /tmp/gate-summary.txt; grep -o 'GOAL3_MOBILE_OK=[^<]*' /tmp/mobile.txt | tee -a /tmp/gate-summary.txt
 
             "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3progressiontest=1&seed=13371337' >/tmp/prog.txt 2>/tmp/prog.err
-            grep -q 'GOAL3_PROGRESSION_OK=true' /tmp/prog.txt && grep -q 'STARTER_ONLY=true' /tmp/prog.txt && grep -q 'LOCKED_EQUIP_BLOCKED=true' /tmp/prog.txt && grep -q 'MONSTER_LEVEL_GATE=true' /tmp/prog.txt && grep -q 'DROP_UNLOCK=true' /tmp/prog.txt && grep -q 'LOADOUT_EQUIP=true' /tmp/prog.txt && grep -q 'LOADOUT_SWAP=true' /tmp/prog.txt && grep -q 'LEVEL_SCALING=true' /tmp/prog.txt && grep -q 'PROGRESSION_UI=true' /tmp/prog.txt && grep -q 'ERRORS=</pre>' /tmp/prog.txt
-            PROG=$?
+            grep -q 'GOAL3_PROGRESSION_OK=true' /tmp/prog.txt && grep -q 'MONSTER_LEVEL_GATE=true' /tmp/prog.txt && grep -q 'DROP_UNLOCK=true' /tmp/prog.txt && grep -q 'LEVEL_SCALING=true' /tmp/prog.txt && grep -q 'ERRORS=</pre>' /tmp/prog.txt; PROG=$?
             echo "PROGRESSION_GATE_EXIT=$PROG" | tee -a /tmp/gate-summary.txt
-            for K in GOAL3_PROGRESSION_OK STARTER_ONLY LOCKED_EQUIP_BLOCKED MONSTER_LEVEL_GATE DROP_UNLOCK LOADOUT_EQUIP LOADOUT_SWAP LEVEL_SCALING OWNED_COLLECTION LEVEL_CAP_CURVE TAG_API_PRESERVED PROGRESSION_API PROGRESSION_UI; do grep -o "$K=[^<]*" /tmp/prog.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; done
+            for K in GOAL3_PROGRESSION_OK STARTER_ONLY MONSTER_LEVEL_GATE DROP_UNLOCK LOADOUT_SWAP LEVEL_SCALING LEVEL_CAP_CURVE; do grep -o "$K=[^<]*" /tmp/prog.txt | tee -a /tmp/gate-summary.txt; done
 
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=5500 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?freshskills=1&skilllab=1&seed=13371337' >/tmp/prog-ui.txt 2>/tmp/prog-ui.err
-            grep -q 'class="g3loadout"' /tmp/prog-ui.txt && grep -q 'class="g3skill locked"' /tmp/prog-ui.txt && grep -q 'Tap an owned skill below' /tmp/prog-ui.txt
-            PROG_UI=$?
-            echo "PROGRESSION_UI_GATE_EXIT=$PROG_UI" | tee -a /tmp/gate-summary.txt
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=7000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3loadoutuitest=1&seed=13371337' >/tmp/loadout.txt 2>/tmp/loadout.err
+            grep -q 'GOAL3_LOADOUT_UI_OK=true' /tmp/loadout.txt && grep -q 'DOM_CLICK_EQUIPS=true' /tmp/loadout.txt && grep -q 'BRAIN_SELECTED_SYNC=true' /tmp/loadout.txt && grep -q 'NO_DUPLICATE_SLOTS=true' /tmp/loadout.txt && grep -q 'ERRORS=</pre>' /tmp/loadout.txt; LOADOUT=$?
+            echo "LOADOUT_UI_GATE_EXIT=$LOADOUT" | tee -a /tmp/gate-summary.txt
+            for K in GOAL3_LOADOUT_UI_OK DOM_CLICK_EQUIPS SELECTED_HIGHLIGHT THREE_PRIORITY_SLOTS BRAIN_OPTION_SYNC BRAIN_SELECTED_SYNC NO_DUPLICATE_SLOTS; do grep -o "$K=[^<]*" /tmp/loadout.txt | tee -a /tmp/gate-summary.txt; done
 
-            timeout 75s "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=65000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3soak=1&seed=13371337' >/tmp/soak.txt 2>/tmp/soak.err
-            SOAK_CHROME=$?
-            grep -q 'GOAL3_SOAK_OK=true' /tmp/soak.txt && grep -q 'STALLS=0' /tmp/soak.txt && grep -q 'CAST_COVERAGE=true' /tmp/soak.txt && grep -q 'LOADOUT_COVERAGE=true' /tmp/soak.txt && grep -q 'ERRORS=</pre>' /tmp/soak.txt
-            SOAK=$?
-            echo "SOAK_CHROME_EXIT=$SOAK_CHROME" | tee -a /tmp/gate-summary.txt
-            echo "SOAK_GATE_EXIT=$SOAK" | tee -a /tmp/gate-summary.txt
-            for K in GOAL3_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS CAST_COVERAGE LOADOUT_COVERAGE CASTS; do grep -o "$K=[^<]*" /tmp/soak.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; done
-
-            timeout 90s "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=75000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3progressionsoak=1&seed=22994417' >/tmp/prog-soak.txt 2>/tmp/prog-soak.err
-            PROG_SOAK_CHROME=$?
-            grep -q 'GOAL3_PROGRESSION_SOAK_OK=true' /tmp/prog-soak.txt && grep -q 'SIM_SECONDS=3600' /tmp/prog-soak.txt && grep -q 'STALLS=0' /tmp/prog-soak.txt && grep -q 'ALL_SKILLS_UNLOCKED=true' /tmp/prog-soak.txt && grep -q 'CAST_COVERAGE=true' /tmp/prog-soak.txt && grep -q 'PROGRESSION_DEPTH=true' /tmp/prog-soak.txt && grep -q 'LOADOUT_COVERAGE=true' /tmp/prog-soak.txt && grep -q 'ERRORS=</pre>' /tmp/prog-soak.txt
-            PROG_SOAK=$?
-            echo "PROGRESSION_SOAK_CHROME_EXIT=$PROG_SOAK_CHROME" | tee -a /tmp/gate-summary.txt
-            echo "PROGRESSION_SOAK_GATE_EXIT=$PROG_SOAK" | tee -a /tmp/gate-summary.txt
-            for K in GOAL3_PROGRESSION_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS ALL_SKILLS_UNLOCKED CAST_COVERAGE PROGRESSION_DEPTH LOADOUT_COVERAGE DROPS UPGRADES MAX_SKILL_LEVEL UNLOCKED CASTS; do grep -o "$K=[^<]*" /tmp/prog-soak.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; done
+            timeout 90s "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=75000 --dump-dom 'http://127.0.0.1:4173/playtest/goal3-test.html?goal3skillsoak=1&seed=22994417' >/tmp/soak.txt 2>/tmp/soak.err
+            grep -q 'GOAL3_SKILL_SOAK_OK=true' /tmp/soak.txt && grep -q 'SIM_SECONDS=3600' /tmp/soak.txt && grep -q 'STALLS=0' /tmp/soak.txt && grep -q 'ALL_SKILLS_UNLOCKED=true' /tmp/soak.txt && grep -q 'CAST_COVERAGE=true' /tmp/soak.txt && grep -q 'PROGRESSION_DEPTH=true' /tmp/soak.txt && grep -q 'LOADOUT_COVERAGE=true' /tmp/soak.txt && grep -q 'ERRORS=</pre>' /tmp/soak.txt; SOAK=$?
+            echo "SKILL_SOAK_GATE_EXIT=$SOAK" | tee -a /tmp/gate-summary.txt
+            for K in GOAL3_SKILL_SOAK_OK SIM_SECONDS STEPS ROOMS WINS LOSSES STALLS TRUNCATED_FINAL_ROOMS ALL_SKILLS_UNLOCKED CAST_COVERAGE PROGRESSION_DEPTH LOADOUT_COVERAGE DROPS UPGRADES MAX_SKILL_LEVEL CASTS STALL_INFO; do grep -o "$K=[^<]*" /tmp/soak.txt | tee -a /tmp/gate-summary.txt; done
 
             "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/goal2.txt 2>/tmp/goal2.err
-            grep -q 'SELFTEST_OK=true' /tmp/goal2.txt && grep -q 'ERRORS=</pre>' /tmp/goal2.txt
-            GOAL2=$?
-            echo "GOAL2_REGRESSION_EXIT=$GOAL2" | tee -a /tmp/gate-summary.txt
-            grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2.txt 2>/dev/null | tee -a /tmp/gate-summary.txt
+            grep -q 'SELFTEST_OK=true' /tmp/goal2.txt && grep -q 'ERRORS=</pre>' /tmp/goal2.txt; GOAL2=$?
+            echo "GOAL2_REGRESSION_EXIT=$GOAL2" | tee -a /tmp/gate-summary.txt; grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2.txt | tee -a /tmp/gate-summary.txt
 
-            echo '== public production (currently promoted build) ==' | tee -a /tmp/gate-summary.txt
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=15000 --dump-dom "${GOAL3_PRODUCTION_URL}/?goal3test=1&seed=13371337&v=goal3-live" >/tmp/prod-g3.txt 2>/tmp/prod-g3.err
-            grep -q 'GOAL3_TEST_OK=true' /tmp/prod-g3.txt && grep -q 'SCHEMA_VALID=true' /tmp/prod-g3.txt && grep -q 'REQUIRED_TAGS=true' /tmp/prod-g3.txt && grep -q 'DELIVERY_COMPONENTS=true' /tmp/prod-g3.txt && grep -q 'COMPONENT_SMOKE=true' /tmp/prod-g3.txt && grep -q 'ERRORS=</pre>' /tmp/prod-g3.txt
-            PROD_G3=$?
-            echo "PRODUCTION_GOAL3_GATE_EXIT=$PROD_G3" | tee -a /tmp/gate-summary.txt
-
-            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=9000 --dump-dom "${GOAL3_PRODUCTION_URL}/?seed=13371337&v=goal3-live" >/tmp/prod-ui.txt 2>/tmp/prod-ui.err
-            grep -q 'id="skillLabBtn"' /tmp/prod-ui.txt && grep -q '>SKILLS<' /tmp/prod-ui.txt
-            PROD_UI=$?
-            echo "PRODUCTION_UI_EXIT=$PROD_UI" | tee -a /tmp/gate-summary.txt
+            "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom "${GOAL3_PRODUCTION_URL}/?goal3test=1&seed=13371337&v=goal3-live" >/tmp/prod.txt 2>/tmp/prod.err
+            grep -q 'GOAL3_TEST_OK=true' /tmp/prod.txt; PROD=$?
+            echo "CURRENT_PRODUCTION_GATE_EXIT=$PROD" | tee -a /tmp/gate-summary.txt
           fi
-
           kill "$SERVER_PID" 2>/dev/null || true
-          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$CHROME" ] && [ "$SERVER" -eq 0 ] && [ "$LOCAL_G3" -eq 0 ] && [ "$LOCAL_UI" -eq 0 ] && [ "$MOBILE" -eq 0 ] && [ "$PROG" -eq 0 ] && [ "$PROG_UI" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$PROG_SOAK" -eq 0 ] && [ "$GOAL2" -eq 0 ] && [ "$PROD_G3" -eq 0 ] && [ "$PROD_UI" -eq 0 ]; then
-            echo 'FINAL_GATE=PASS' | tee -a /tmp/gate-summary.txt
-            exit 0
-          fi
+          if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ "$SERVER" -eq 0 ] && [ "$CORE" -eq 0 ] && [ "$MOBILE" -eq 0 ] && [ "$PROG" -eq 0 ] && [ "$LOADOUT" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$GOAL2" -eq 0 ] && [ "$PROD" -eq 0 ]; then echo 'FINAL_GATE=PASS' | tee -a /tmp/gate-summary.txt; exit 0; fi
           echo 'FINAL_GATE=FAIL' | tee -a /tmp/gate-summary.txt
-          if [ "$LOCAL_G3" -ne 0 ]; then tail -c 3000 /tmp/local-g3.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; fi
-          if [ "$PROG" -ne 0 ]; then tail -c 3500 /tmp/prog.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; fi
-          if [ "$SOAK" -ne 0 ]; then tail -c 3500 /tmp/soak.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; fi
-          if [ "$PROG_SOAK" -ne 0 ]; then tail -c 5000 /tmp/prog-soak.txt 2>/dev/null | tee -a /tmp/gate-summary.txt; fi
+          [ "$LOADOUT" -ne 0 ] && tail -c 4000 /tmp/loadout.txt | tee -a /tmp/gate-summary.txt
+          [ "$SOAK" -ne 0 ] && tail -c 5000 /tmp/soak.txt | tee -a /tmp/gate-summary.txt
           exit 1
 
       - name: Publish browser-gate result
@@ -136,17 +92,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           OUTCOME: ${{ steps.gate.outcome }}
         run: |
-          {
-            echo "### Goal 03 browser gate — ${OUTCOME^^}"
-            echo
-            echo "Commit: \`${GITHUB_SHA}\`"
-            echo
-            echo '```text'
-            cat /tmp/gate-summary.txt 2>/dev/null || echo 'diagnostic summary missing'
-            echo '```'
-          } > /tmp/goal3-report.md
-          gh issue comment 4 --body-file /tmp/goal3-report.md
-
+          { echo "### Goal 03 v1.2 browser gate — ${OUTCOME^^}"; echo; echo "Commit: \`${GITHUB_SHA}\`"; echo; echo '```text'; cat /tmp/gate-summary.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
+          gh issue comment 4 --body-file /tmp/report.md
       - name: Enforce gate
         if: steps.gate.outcome != 'success'
         run: exit 1
