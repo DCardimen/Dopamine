@@ -9,6 +9,10 @@ on:
       - '.github/workflows/goal3-browser-gate.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   browser-gate:
     runs-on: ubuntu-latest
@@ -72,14 +76,26 @@ jobs:
           grep -q 'SELFTEST_OK=true' /tmp/goal2-test.txt
           grep -q 'ERRORS=</pre>' /tmp/goal2-test.txt
 
-      - name: Report
+      - name: Publish browser-gate result
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo '--- Goal 03 ---'
-          grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
-          grep -o 'SCHEMA_VALID=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
-          grep -o 'REQUIRED_TAGS=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
-          grep -o 'DELIVERY_COMPONENTS=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
-          grep -o 'COMPONENT_SMOKE=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
-          echo '--- Goal 02 ---'
-          grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2-test.txt 2>/dev/null || true
+          {
+            echo "### Goal 03 browser gate — ${JOB_STATUS^^}"
+            echo
+            echo "Commit: \`${GITHUB_SHA}\`"
+            echo
+            echo '```text'
+            grep -o 'GOAL3_TEST_OK=[^<]*' /tmp/goal3-test.txt 2>/dev/null || echo 'GOAL3_TEST_OK=not-produced'
+            grep -o 'SCHEMA_VALID=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+            grep -o 'REQUIRED_TAGS=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+            grep -o 'DELIVERY_COMPONENTS=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+            grep -o 'COMPONENT_SMOKE=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+            grep -o 'DAMAGE_EFFECTIVENESS_CAST_SEPARATED=[^<]*' /tmp/goal3-test.txt 2>/dev/null || true
+            grep -o 'SELFTEST_OK=[^<]*' /tmp/goal2-test.txt 2>/dev/null || echo 'SELFTEST_OK=not-produced'
+            echo '```'
+          } > /tmp/goal3-report.md
+          cat /tmp/goal3-report.md
+          gh issue comment 4 --body-file /tmp/goal3-report.md
