@@ -1,0 +1,54 @@
+name: Goal 04 Phase 6 Completeness Audit
+
+on:
+  push:
+    branches: [main]
+    paths: ['goal4/**','.github/workflows/goal4-phase6-audit.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run fair-depth completeness audit
+        id: gate
+        continue-on-error: true
+        run: |
+          set +e; : >/tmp/g4audit.txt
+          SYNTAX=0; for F in goal4/catalog.js goal4/runtime.js goal4/fun-pass.js goal4/gap-pass.js goal4/gap-stability.js goal4/quality-audit.js; do node --check "$F" || SYNTAX=1; done
+          echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/g4audit.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('playtest/index.html').read_text()
+          g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
+          g4=['catalog.js','runtime.js','fun-pass.js','gap-pass.js','gap-stability.js','quality-audit.js']
+          scripts=''.join(f'<script src="/goal3/{f}?v=4audit"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=4audit"></script>' for f in g4)
+          Path('playtest/goal4-audit.html').write_text(src.replace('</body>',scripts+'</body>'))
+          PY
+          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"; echo "CHROME=$C" | tee -a /tmp/g4audit.txt; AUDIT=99
+          python3 -m http.server 4173 >/tmp/http.log 2>&1 & HP=$!; sleep 1
+          if [ "$SYNTAX" -eq 0 ] && [ -n "$C" ]; then
+            timeout 180s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=160000 --dump-dom 'http://127.0.0.1:4173/playtest/goal4-audit.html?goal4audit=1&seed=22994417' >/tmp/audit 2>/tmp/e
+            grep -q 'COMPLETENESS_SCORE=' /tmp/audit && grep -q 'FAIR_MATRIX_STALLS=0' /tmp/audit && grep -q 'ERRORS=</pre>' /tmp/audit; AUDIT=$?; echo "AUDIT_EXECUTION_EXIT=$AUDIT" | tee -a /tmp/g4audit.txt
+            for K in GOAL4_AUDIT_OK COMPLETENESS_SCORE CATALOG ROLE_COVERAGE MASTERY_DEPTH COMPACT_DROP_UI FAIR_BALANCE PROGRESSION STABLE VISUAL_IDENTITY ARSENAL_UX PERSISTENCE_AND_DISCOVERY FAIR_MATRIX_STEPS FAIR_MATRIX_STALLS MIN_FAIR_WIN_RATE MAX_FAIR_WIN_RATE CAST_COVERAGE ERRORS; do grep -o "$K=[^<]*" /tmp/audit | head -1 | tee -a /tmp/g4audit.txt; done
+            grep -Eo 'BUILD[0-9]+=[^<]*' /tmp/audit | tee -a /tmp/g4audit.txt
+          fi
+          kill "$HP" 2>/dev/null || true
+          if [ "$AUDIT" -eq 0 ]; then echo 'AUDIT_RAN=PASS' | tee -a /tmp/g4audit.txt; exit 0; fi
+          echo 'AUDIT_RAN=FAIL' | tee -a /tmp/g4audit.txt; tail -c 12000 /tmp/audit 2>/dev/null | tee -a /tmp/g4audit.txt; exit 1
+      - name: Publish audit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          { echo '### Goal 04 Phase 6 — initial completeness audit'; echo; echo "Commit: \`${GITHUB_SHA}\`"; echo; echo '```text'; cat /tmp/g4audit.txt 2>/dev/null || true; echo '```'; } >/tmp/report.md
+          gh issue comment 5 --body-file /tmp/report.md
+      - name: Enforce execution
+        if: steps.gate.outcome != 'success'
+        run: exit 1
