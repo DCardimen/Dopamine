@@ -1,133 +1,146 @@
 # Goal 02 — Build the Autobattler Brain
 
 ## Objective
-Turn the player from a spectator into the **architect of combat behavior**. The hero still fights automatically, but the player chooses what the AI values, when it retreats, how it positions, and which skills it prefers.
+Turn the player from a spectator into the **architect of combat behavior**. The hero still fights automatically, but the player chooses what the AI values, when it retreats, how it positions, how it reacts when a plan fails, and which skills it prefers.
 
-Goal 02 passes only when two different brain configurations produce visibly and measurably different combat on the **same deterministic room**.
+Goal 02 passes only when different brain configurations produce visibly and measurably different combat on the **same deterministic room**.
 
 ## Status
-**IN PROGRESS — v1.1 fixes the first major human-playtest failures. Goal 02 remains open for further feel validation.**
+**IN PROGRESS — v1.2 passed a one-hour-equivalent stability/behavior soak and ten automated feature gates. Human feel validation remains before Goal 02 is closed.**
 
-## Goal 02 v1 — Brain Lab
-The browser playtest includes a mobile-first **BRAIN** editor that pauses combat while tactics are edited.
+## Core Brain Lab
+The mobile-first **BRAIN** editor pauses combat while tactics are edited and provides four starting profiles:
+- **Berserker** — aggressive chase, execute focus, late retreat.
+- **Balanced** — threat targeting, moderate survival behavior.
+- **Tactician** — support priority, higher danger awareness, deliberate spacing.
+- **Kiter** — ranged priority, early spacing and evasive behavior.
 
-### Preset brains
-- **Berserker** — execute-focused, aggressive chase, very late retreat.
-- **Balanced** — threat targeting, moderate retreat, cover-aware.
-- **Tactician** — support-target priority, earlier retreat, cover-heavy positioning.
-- **Kiter** — ranged-target priority, attack-window kiting, low surround tolerance.
+Every room is deterministic from seed + depth. **REPLAY SAME** rebuilds the same enemies and terrain so two brains can be compared apples-to-apples.
 
-### Player-configurable behavior
-1. Target priority: Threat / Nearest / Ranged / Low HP / Support.
-2. Execute threshold bonus.
-3. Positioning stance: Chase / Balanced / Kite.
-4. Retreat HP threshold.
-5. Surround-count retreat threshold.
-6. Use-cover toggle.
-7. Skill priority slot 1.
-8. Skill priority slot 2.
-9. Skill priority slot 3.
-10. Ground Slam minimum target count.
-11. Whirlwind minimum target count.
-12. Predictive projectile dodge toggle.
-13. Telegraph dodge toggle.
-14. Persistent saved brain configuration.
-15. Apply without restarting combat.
-16. Apply + replay the exact same deterministic room.
+## Goal 02 v1.2 — One-hour quality pass
+The exact combat logic was run for **3,600.0 simulated seconds** across randomized depths and all four profiles. Earlier soak iterations exposed wall pressure, cover loops, ranged stalemates, and over-safe survival behavior; those failures were fixed rather than weakening the gate.
 
-## Goal 02 v1.1 — Adaptation / reliability pass
-This pass responds directly to playtest failures around wall sticking, endless pursuit, and missed skill opportunities.
+### Ten major improvements
+1. **Potential-field navigation + stronger anti-stuck**
+   - Arena borders push movement inward before hard collision.
+   - Obstacles steer the player around their perimeter.
+   - A sampled safe-route recovery takes over when meaningful movement intent produces near-zero progress.
+   - Physics now uses additional separation cleanup passes.
 
-### Anti-stuck navigation
-- Steering adds a strong inward bias near all arena borders instead of allowing retreat/kite vectors to continuously push outward.
-- Outward velocity is reflected/damped when the player reaches a hard boundary.
-- A movement watchdog detects meaningful intent with near-zero movement for ~0.55s and applies a deterministic escape route away from the wall/nearest obstacle.
-- Combat telemetry records **Unstuck recoveries**.
+2. **Target commitment / hysteresis**
+   - New **Target Lock** control.
+   - The brain stays committed for a configurable window unless a substantially better threat appears.
+   - Reduces noisy target swapping and makes targeting rules visually legible.
 
-### Adaptive pursuit
-New Brain controls:
-- **Adapt when a target keeps escaping** toggle.
-- **No-progress timeout** from 1.5–8 seconds.
-- Fallback strategy: **Hybrid**, **Switch target**, or **Intercept / cut off**.
+3. **Escalating adaptive pursuit**
+   - Failed pursuit builds frustration memory per monster.
+   - Hybrid adaptation can escalate through **intercept → flank → commit pursuit → switch/temporary blacklist**.
+   - The brain does not immediately repeat a failed tactic against the same evasive target.
 
-The brain tracks whether distance to its current target is actually improving. If not, it can temporarily blacklist the target and select another enemy, or predict the evasive target's movement and cut it off rather than following directly.
+4. **Sampled safe-point planner**
+   - Retreat and kiting no longer use a single backwards vector.
+   - Candidate positions are scored for melee pressure, projectile paths, telegraphed hazards, edge pressure, obstacles, travel distance, and optional cover.
+   - The brain selects the lowest-risk viable point.
 
-### Reliable skill scheduler
-- Ready AoE skills evaluate **before retreat behavior**. If Ground Slam/Whirlwind is ready and its configured target-count condition is satisfied, it fires immediately instead of being skipped because the brain wanted to back away.
-- Skill priority still controls which valid skill fires first.
-- The HUD distinguishes cooldown availability from tactical eligibility: e.g. **WAIT 2/4** instead of misleadingly showing **READY** when Ground Slam requires four targets.
+5. **Retreat hysteresis / anti-loop behavior**
+   - New **Re-engage HP** control separate from Retreat HP.
+   - Safe-state and minimum-duration rules prevent flee/attack flicker.
+   - Retreat is time-bounded and followed by a brief re-engagement cooldown.
+   - Cover use is also bounded by cover windows/cooldowns so the hero cannot orbit terrain forever.
 
-## Brain telemetry
-The combat report records:
-- Brain/profile name
-- Targeting mode and stance
-- Adaptive pursuit mode / timeout
-- Seed/depth
-- Target switches
-- Adaptive strategy changes
-- Unstuck recoveries
-- Brain decision changes
-- Retreat events
-- Cover movements
-- Danger dodges
-- Projectile dodges
-- Skill cast counts
-- Damage taken / duration / first kill / skill damage share
+6. **Threat forecasting / danger score**
+   - New **Danger Sensitivity**: Low / Medium / High.
+   - Live danger score incorporates melee density, ranged line of sight, incoming projectile trajectories, boss/exploder telegraphs, and arena-edge pressure.
+   - Current danger is visible in the live Brain ticker.
 
-## Deterministic comparison loop
-Every depth is generated from `base seed + depth`. **Replay Same** regenerates the identical enemy composition and obstacle layout, allowing apples-to-apples comparison between different brains.
+7. **Skill starvation protection**
+   - New **Flexible After** control.
+   - If an AoE remains ready too long, its target-count requirement gradually relaxes instead of wasting the cooldown indefinitely.
+   - Elite/boss opportunities can override strict density rules earlier.
+   - HUD distinguishes ordinary READY, WAIT X/Y, and forced/flexible cast states.
 
-## v1.1 automated regression test
-Local JavaScript simulation harness, seed `424242`:
+8. **Combo scheduler**
+   - New plans: **Adaptive**, **Slam → Whirlwind**, **Whirlwind → Slam**, or **None**.
+   - A successful opener creates a short follow-up window with slightly relaxed conditions.
+   - Produces intentional combat rhythms instead of three unrelated cooldown checks.
+
+9. **Engagement leash + anti-stalemate escalation**
+   - New **Chase Leash** control limits how long one pursuit plan may consume.
+   - A global no-meaningful-damage watchdog can force contact even when tiny distance changes falsely look like progress.
+   - Long rooms and a lone evasive final enemy trigger a timeboxed **all-in pursuit** state. Ordinary projectile perfection is temporarily deprioritized, while major telegraphs remain respected.
+
+10. **Explainability + faster mobile editing**
+   - Brain settings are grouped into collapsible Targeting, Positioning/Survival, Adaptive Pursuit, Skill Logic, and Emergency sections.
+   - The current target gets a visible ring.
+   - Live ticker shows the current decision and danger level.
+   - Post-room **BRAIN INSIGHT** explains likely problems such as target thrashing, wall pressure, excessive retreat, chase-leash triggers, forced AoE casts, and successful combos.
+
+## v1.2 deterministic feature gate
 - `SELFTEST_OK=true`
-- 4 profiles exercised
-- 4 unique decision signatures
-- First-kill P90: `1.29s`
-- Maximum measured overlap: `0.00px`
-- Boss coverage: PASS
-- Projectile coverage: PASS
-- **Adaptive pursuit regression: PASS**
-- **Forced edge escape regression: PASS**
-- **Ready-skill immediate-cast regression: PASS**
-- 6,389 simulation steps
-- Runtime errors: 0
+- Maximum measured body overlap: **0.00px**
+- Edge vector escape: PASS
+- Target lock: PASS
+- Adaptive escalation: PASS
+- Safe-point planner: PASS
+- Retreat hysteresis: PASS
+- Danger forecasting: PASS
+- Skill starvation guard: PASS
+- Combo scheduler: PASS
+- Chase leash: PASS
+- Explainability/mobile UI: PASS
+- Runtime errors: **0**
 
-The production Vercel page is pinned to commit `f5cc342892cde466df570ab12f5fb5ce035a1b74` for the v1.1 playtest assets, preventing source/deployment drift during this feedback cycle.
+## One-hour-equivalent soak
+Final exact-JavaScript combat-logic soak:
+- `SOAK_OK=true`
+- Simulated combat: **3,600.0 seconds**
+- Combat steps: **102,858**
+- Randomized rooms: **226**
+- Stalled rooms: **0**
+- Runtime errors: **0**
+- Maximum measured overlap: **0.00px**
+- Wall-pressure time: **0.82%**
+- Maximum continuous retreat: **4.45s**
+- Unstuck recoveries: **27**
+- Adaptive changes: **54**
+- Commit-pursuit events: **191**
+- Chase-leash breaks: **15**
+- Starvation-protected AoE casts: **510**
+- Combo follow-ups: **229**
+- Maximum room duration: **61.5s**
+
+The soak cycles depths 1–20 without permanent progression, so deep-room win rate is not used as a Goal 02 pass/fail criterion. The relevant gate is that the behavior system does not stall, loop forever, pin to borders, silently waste valid skill opportunities, or crash.
+
+## Production
+The v1.2 browser playtest is pinned to GitHub commit `f8835df56101a93e4d87fa498d17cee228fe292e`, preventing source/deployment drift during testing.
 
 ## Acceptance tests
-- [x] Player can open the Brain editor on a phone without leaving the playtest.
-- [x] Opening the Brain editor pauses combat.
-- [x] Player can choose among at least four meaningfully different presets.
-- [x] Player can customize targeting priority.
-- [x] Player can customize stance / positioning behavior.
-- [x] Player can customize HP-based retreat behavior.
-- [x] Player can customize surround-pressure retreat behavior.
-- [x] Player can enable/disable projectile dodging.
-- [x] Player can enable/disable telegraph dodging.
-- [x] Player can enable/disable terrain-cover behavior.
-- [x] Player can reorder skill priority.
-- [x] Player can set AoE minimum-target rules.
-- [x] Player can configure adaptation to evasive/uncatchable targets.
-- [x] Player has switch-target and intercept fallback behavior.
-- [x] Boundary steering actively prevents prolonged wall pinning.
-- [x] Anti-stuck watchdog recovers from forced zero-progress edge movement.
-- [x] A ready AoE with its condition satisfied casts before ordinary retreat logic.
-- [x] Skill HUD explains when a cooldown is ready but tactical conditions are not met.
+- [x] Mobile Brain editor and four presets.
+- [x] Target priority and execute rules.
+- [x] Target commitment / lock control.
+- [x] Positioning stance and cover behavior.
+- [x] Retreat HP, re-engage HP, surround threshold, and danger sensitivity.
+- [x] Predictive projectile and telegraph reactions.
+- [x] Adaptive pursuit with intercept, flank, commit, switch, and frustration memory.
+- [x] Chase leash and fight-level anti-stalemate watchdog.
+- [x] Skill priority and AoE target-count conditions.
+- [x] Skill starvation protection.
+- [x] Configurable combo plan.
 - [x] Brain settings persist locally.
-- [x] Brain decisions are visible during combat.
-- [x] Brain decisions are summarized after combat.
-- [x] Same-room replay is deterministic.
-- [x] Automated test observes at least three unique decision signatures from four presets.
-- [ ] Target priority changes are unmistakable to a human playtester on mixed packs.
-- [ ] Stance differences are unmistakable to a human playtester without reading telemetry.
-- [ ] Skill-priority changes create obvious timing differences.
-- [ ] A custom brain can outperform a poor preset on at least one deterministic room.
-- [ ] No brain configuration creates pathological infinite retreat / no-engagement loops in extended play.
-- [ ] Mobile controls remain comfortable after repeated editing.
-- [ ] Final Goal 02 quality score is 9/10+ in targeting, positioning, skill rules, conditional rules, readability, and replay comparison.
+- [x] Live target/decision/danger readability.
+- [x] Post-room Brain Insight + detailed diagnostics.
+- [x] Same-room deterministic replay.
+- [x] Extended automated soak has no pathological no-engagement stalls.
+- [x] Border/wall pinning is bounded in the extended soak.
+- [ ] Target-priority differences are unmistakable to a human playtester on mixed packs.
+- [ ] Stance differences are unmistakable without reading telemetry.
+- [ ] Skill-priority/combo changes create obviously different fight rhythms.
+- [ ] A tuned custom brain can outperform a poor preset on an identical room in human testing.
+- [ ] Repeated mobile editing remains comfortable.
+- [ ] Final Goal 02 human-facing quality score reaches 9/10+ across targeting, positioning, skill rules, conditional rules, readability, and comparison UX.
 
 ## Explicitly excluded from Goal 02
-No loot, equipment affixes, passive tree, skill gems, crafting, story, town, or permanent character progression. Goal 02 is about **behavior authoring**, not build progression.
+No loot, equipment affixes, passive tree, skill gems, crafting, story, town, or permanent character progression. Goal 02 remains about **behavior authoring**, not build progression.
 
 ## Next pass
-Human playtest v1.1 on mixed ranged packs and edge-heavy rooms. Focus on whether adaptation is understandable, whether intercept looks intelligent rather than erratic, and whether skill timing now feels trustworthy.
+Human-test v1.2 using **REPLAY SAME**. The highest-value comparison is Balanced vs Kiter vs Berserker on the same ranged-heavy room, then a custom brain. The question is no longer whether the AI can avoid pathological loops; it is whether the behavioral choices feel obvious, powerful, and fun enough to justify the system.
