@@ -36,7 +36,7 @@ The browser playtest includes a mobile-first **BRAIN** editor that pauses combat
 This pass responds directly to playtest failures around wall sticking, endless pursuit, and missed skill opportunities.
 
 ### Anti-stuck navigation
-- Steering now adds a strong inward bias near all arena borders instead of allowing retreat/kite vectors to continuously push outward.
+- Steering adds a strong inward bias near all arena borders instead of allowing retreat/kite vectors to continuously push outward.
 - Outward velocity is reflected/damped when the player reaches a hard boundary.
 - A movement watchdog detects meaningful intent with near-zero movement for ~0.55s and applies a deterministic escape route away from the wall/nearest obstacle.
 - Combat telemetry records **Unstuck recoveries**.
@@ -50,9 +50,9 @@ New Brain controls:
 The brain tracks whether distance to its current target is actually improving. If not, it can temporarily blacklist the target and select another enemy, or predict the evasive target's movement and cut it off rather than following directly.
 
 ### Reliable skill scheduler
-- Ready AoE skills now evaluate **before retreat behavior**. If Ground Slam/Whirlwind is ready and its configured target-count condition is satisfied, it fires immediately instead of being skipped because the brain wanted to back away.
+- Ready AoE skills evaluate **before retreat behavior**. If Ground Slam/Whirlwind is ready and its configured target-count condition is satisfied, it fires immediately instead of being skipped because the brain wanted to back away.
 - Skill priority still controls which valid skill fires first.
-- The HUD now distinguishes cooldown availability from tactical eligibility: e.g. **WAIT 2/4** instead of misleadingly showing **READY** when Ground Slam requires four targets.
+- The HUD distinguishes cooldown availability from tactical eligibility: e.g. **WAIT 2/4** instead of misleadingly showing **READY** when Ground Slam requires four targets.
 
 ## Brain telemetry
 The combat report records:
@@ -88,6 +88,8 @@ Local JavaScript simulation harness, seed `424242`:
 - **Ready-skill immediate-cast regression: PASS**
 - 6,389 simulation steps
 - Runtime errors: 0
+
+The production Vercel page is pinned to commit `f5cc342892cde466df570ab12f5fb5ce035a1b74` for the v1.1 playtest assets, preventing source/deployment drift during this feedback cycle.
 
 ## Acceptance tests
 - [x] Player can open the Brain editor on a phone without leaving the playtest.
