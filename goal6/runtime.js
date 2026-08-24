@@ -1,6 +1,6 @@
 'use strict';
 (()=>{
-const q=new URLSearchParams(location.search),QA=['supporttest','supportmobile','supportsoak'].some(k=>q.has(k));
+const q=new URLSearchParams(location.search),QA=['supporttest','supportmobile','supportsoak','supportmatrix','supportsocktest'].some(k=>q.has(k));
 const api=window.DopamineSkills,g4=window.DopamineGoal4,cat=window.DopamineSupportCatalog;if(!api||!g4||!cat)return;
 const KEY='dopamineSupportsV10',MAX=10,ids=cat.ids(),defs=Object.fromEntries(ids.map(id=>[id,cat.get(id)]));
 const fresh=()=>({schema:10,owned:{},equipped:{},drops:0,stageClears:0,newPity:0,history:[],lastDrop:null});let state=fresh();
