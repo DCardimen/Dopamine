@@ -20,8 +20,8 @@ function previewChanged(def,b,a){
  if(def.mods.range!=null&&def.mods.range!==1)ok=ok&&Math.abs(a.rangeMult-clamp(def.mods.range,.65,1.8))<.015;
  return ok
 }
-function semanticCheck(supid){
- const def=cat.get(supid),sid=api.ids().find(x=>sup.compatible(x,supid));if(!sid)return{ok:false,why:'no-compatible-skill'};
+function semanticCheck(supid,sidOverride=null){
+ const def=cat.get(supid),sid=sidOverride||api.ids().find(x=>sup.compatible(x,supid));if(!sid||!sup.compatible(sid,supid))return{ok:false,why:'no-compatible-skill'};depth=1;
  sup.reset();sup.resetSocketLayout?.();sup.debugUnlockAll(2);sup.debugSetSlots(sid,10);clearSkill(sid);
  beginRoom();brain.skills=[];const base=sup.preview(sid),assigned=sup.assignSocket(sid,0,supid);if(!assigned?.ok)return{ok:false,why:'assign'};
  let world=controlled(false,5),{main,others}=world,source=api.get(sid).name,after=sup.preview(sid),checks=[];
@@ -71,7 +71,7 @@ function semanticCheck(supid){
 }
 try{
  unlockSkills();sup.resetSlots?.();sup.debugUnlockAllSlots?.(10);
- const skills=api.ids(),supports=cat.ids(),pairFailures=[],pairBySkill={},supportPairCount=Object.fromEntries(supports.map(id=>[id,0]));let pairs=0;
+ const skills=api.ids(),supports=cat.ids(),pairFailures=[],functionalFailures=[],pairBySkill={},supportPairCount=Object.fromEntries(supports.map(id=>[id,0]));let pairs=0,functionalPairs=0;
  for(const sid of skills){
    let good=0,total=0;sup.debugSetSlots(sid,10);
    for(const supid of supports){
@@ -80,13 +80,15 @@ try{
      beginRoom();brain.skills=[];const w=controlled(false,3),beforeErr=(typeof runtimeErrors!=='undefined'?runtimeErrors.length:0),assigned=sup.assignSocket(sid,0,supid),pre=sup.preview(sid),casted=assigned?.ok&&castSkill(sid,w.main,true,false),queued=pre.repeatQueue;
      for(let i=0;i<50;i++)step(.035);
      const newErr=(typeof runtimeErrors!=='undefined'?runtimeErrors.length:0)>beforeErr,exact=sup.supportAt(sid,0)===supid&&sup.equipped(sid).includes(supid),modsOK=previewChanged(cat.get(supid),{},pre);
-     if(assigned?.ok&&casted&&exact&&modsOK&&!newErr)good++;else if(pairFailures.length<50)pairFailures.push(`${sid}+${supid}:${!assigned?.ok?'assign':!casted?'cast':!exact?'socket':!modsOK?'mods':'runtime'}`);
+     const pairBase=assigned?.ok&&casted&&exact&&modsOK&&!newErr;
+     const behavior=pairBase?semanticCheck(supid,sid):{ok:false,why:'base-pair'};
+     if(pairBase&&behavior.ok){good++;functionalPairs++}else{if(!pairBase&&pairFailures.length<50)pairFailures.push(`${sid}+${supid}:${!assigned?.ok?'assign':!casted?'cast':!exact?'socket':!modsOK?'mods':'runtime'}`);if(!behavior.ok&&functionalFailures.length<80)functionalFailures.push(`${sid}+${supid}:${behavior.why}`)}
    }
    pairBySkill[sid]=`${good}/${total}`;
  }
  const semantics={},semanticFailures=[];
  for(const supid of supports){const r=semanticCheck(supid);semantics[supid]=r.ok;if(!r.ok)semanticFailures.push(`${supid}@${r.sid||'?'}:${r.why}`)}
- const errs=typeof runtimeErrors!=='undefined'?runtimeErrors:[],allPairs=pairFailures.length===0&&skills.every(s=>pairBySkill[s].split('/')[0]===pairBySkill[s].split('/')[1]),allSupports=supports.every(id=>supportPairCount[id]>0&&semantics[id]),allSkills=skills.length===30,ok=allPairs&&allSupports&&allSkills&&errs.length===0;
- finish([`SUPPORT_MATRIX_OK=${ok}`,`ACTIVE_SKILLS=${skills.length}`,`SUPPORTS=${supports.length}`,`COMPATIBLE_PAIRS_TESTED=${pairs}`,`ALL_COMPATIBLE_PAIRS_CAST=${allPairs}`,`ALL_SUPPORTS_SEMANTICALLY_EXERCISED=${allSupports}`,`SEMANTIC_FAILURES=${semanticFailures.join(',')}`,`PAIR_FAILURES=${pairFailures.join(',')}`,`PAIR_BY_SKILL=${Object.entries(pairBySkill).map(([k,v])=>k+':'+v).join(',')}`,`ERRORS=${errs.join('|')}`],{ok,skills:skills.length,supports:supports.length,pairs,allPairs,allSupports,semanticFailures,pairFailures,pairBySkill,semantics,errors:errs});
+ const errs=typeof runtimeErrors!=='undefined'?runtimeErrors:[],allPairs=pairFailures.length===0&&skills.every(s=>pairBySkill[s].split('/')[0]===pairBySkill[s].split('/')[1]),allFunctional=functionalFailures.length===0&&functionalPairs===pairs,allSupports=supports.every(id=>supportPairCount[id]>0&&semantics[id]),allSkills=skills.length===30,ok=allPairs&&allFunctional&&allSupports&&allSkills&&errs.length===0;
+ finish([`SUPPORT_MATRIX_OK=${ok}`,`ACTIVE_SKILLS=${skills.length}`,`SUPPORTS=${supports.length}`,`COMPATIBLE_PAIRS_TESTED=${pairs}`,`FUNCTIONAL_PAIRS_TESTED=${functionalPairs}`,`ALL_COMPATIBLE_PAIRS_CAST=${allPairs}`,`ALL_COMPATIBLE_PAIRS_FUNCTIONAL=${allFunctional}`,`ALL_SUPPORTS_SEMANTICALLY_EXERCISED=${allSupports}`,`SEMANTIC_FAILURES=${semanticFailures.join(',')}`,`FUNCTIONAL_PAIR_FAILURES=${functionalFailures.join(',')}`,`PAIR_FAILURES=${pairFailures.join(',')}`,`PAIR_BY_SKILL=${Object.entries(pairBySkill).map(([k,v])=>k+':'+v).join(',')}`,`ERRORS=${errs.join('|')}`],{ok,skills:skills.length,supports:supports.length,pairs,functionalPairs,allPairs,allFunctional,allSupports,semanticFailures,functionalFailures,pairFailures,pairBySkill,semantics,errors:errs});
 }catch(e){finish(['SUPPORT_MATRIX_OK=false',`EXCEPTION=${String(e?.stack||e?.message||e).replace(/\n/g,' | ')}`],{ok:false,exception:String(e)})}
 })();
