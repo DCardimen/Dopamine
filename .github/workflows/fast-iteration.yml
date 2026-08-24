@@ -1,0 +1,71 @@
+name: Fast Iteration Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'goal3/**'
+      - 'goal4/**'
+      - 'goal6/**'
+      - 'playtest/**'
+      - 'index.html'
+      - 'dev.html'
+      - '.github/workflows/fast-iteration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dopamine-fast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check gameplay scripts
+        run: |
+          set -euo pipefail
+          find goal3 goal4 goal6 -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Build fast browser harness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('playtest/index.html').read_text()
+          g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
+          g4=['catalog.js','runtime.js','fun-pass.js','gap-pass.js','gap-stability.js','final-polish.js']
+          g6=['stage-summary.js','catalog.js','runtime.js','room-rollover-fix.js','slot-progression.js','socket-model-v2.js','ui.js','friendly-skill-entry.js','quality-fast-entry.js']
+          scripts=''.join(f'<script src="/goal3/{f}"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}"></script>' for f in g4)+''.join(f'<script src="/goal6/{f}"></script>' for f in g6)
+          Path('playtest/fast-iteration.html').write_text(src.replace('</body>',scripts+'</body>'))
+          PY
+      - name: Fast Chrome verification
+        run: |
+          set -euo pipefail
+          C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          test -n "$C"
+          python3 -m http.server 4173 >/tmp/http.log 2>&1 & HP=$!
+          trap 'kill $HP 2>/dev/null || true' EXIT
+          sleep 1
+          timeout 45s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=22000 --dump-dom 'http://127.0.0.1:4173/playtest/fast-iteration.html?supportfast=1&seed=90210' >/tmp/fast 2>/tmp/fast.err
+          grep -q 'SUPPORT_FAST_OK=true' /tmp/fast
+          grep -q 'DIRECT_SKILL_OPENS_SUPPORTS=true' /tmp/fast
+          grep -q 'SUPPORT_SLOT_COUNT=10' /tmp/fast
+          grep -q 'EQUIP_CONTROL_NOT_HIJACKED=true' /tmp/fast
+          grep -q 'ERRORS=</pre>' /tmp/fast
+          timeout 30s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=10000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/g2 2>/tmp/g2.err
+          grep -q 'SELFTEST_OK=true' /tmp/g2
+          grep -q 'ERRORS=</pre>' /tmp/g2
+          {
+            echo '## Fast Iteration Gate ✅'
+            echo
+            echo '- Syntax: PASS'
+            echo '- Direct skill → support sockets: PASS'
+            echo '- 10-slot support screen: PASS'
+            echo '- Equip controls remain independent: PASS'
+            echo '- Goal 02 smoke regression: PASS'
+            echo
+            echo 'The exhaustive support matrix and 1-hour soak are intentionally reserved for the manual Final Gate.'
+          } >> "$GITHUB_STEP_SUMMARY"
