@@ -16,6 +16,7 @@ on:
 permissions:
   contents: read
   statuses: write
+  issues: write
 
 concurrency:
   group: dopamine-fast-${{ github.ref }}
@@ -70,6 +71,23 @@ jobs:
             echo
             echo 'The exhaustive support matrix and 1-hour soak are intentionally reserved for the manual Final Gate.'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish failure diagnostics
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '### Fast iteration failure diagnostics'
+            echo
+            echo "Commit: \`$GITHUB_SHA\`"
+            echo
+            echo '```text'
+            grep -o 'SUPPORT_FAST_OK=[^<]*\|DIRECT_SKILL_CARD=[^<]*\|LEGACY_SUPPORT_BUTTON_HIDDEN=[^<]*\|DIRECT_SKILL_OPENS_SUPPORTS=[^<]*\|SUPPORT_SLOT_COUNT=[^<]*\|EQUIP_CONTROL_NOT_HIJACKED=[^<]*\|EXCEPTION=[^<]*\|ERRORS=[^<]*' /tmp/fast 2>/dev/null || true
+            grep -o 'SELFTEST_OK=[^<]*\|ERRORS=[^<]*' /tmp/g2 2>/dev/null || true
+            tail -n 10 /tmp/fast.err 2>/dev/null || true
+            echo '```'
+          } >/tmp/fast-fail.md
+          gh issue comment 6 --body-file /tmp/fast-fail.md
       - name: Publish fast-loop commit status
         if: always()
         env:
