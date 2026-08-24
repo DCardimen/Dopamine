@@ -29,7 +29,7 @@ if(test){
    const exactPlacement=sup.assignSocket('Firebolt',2,'rime')?.ok===true&&sup.supportAt('Firebolt',2)==='rime'&&sup.supportAt('Firebolt',0)==null;
    ui.render('Firebolt');const tabs=[...document.querySelectorAll('[data-skill]')],activeTabs=tabs.length>=1;
    const errs=typeof runtimeErrors!=='undefined'?runtimeErrors:[],ok=seeded&&tenVisible&&noCatalogScroll&&pickerOpen&&moveLabel&&moved&&replaced&&cleared&&exactPlacement&&activeTabs&&errs.length===0;
-   prior.ui=ok;prior.socketUiV2=ok;prior.directSocketPicker=pickerOpen;prior.moveReassign=moved;prior.exactPlacement=exactPlacement;prior.noCatalogScroll=noCatalogScroll;prior.errors=[...(prior.errors||[]),...errs];
+   prior.ui=ok;prior.copyAllocation=moved;prior.socketUiV2=ok;prior.directSocketPicker=pickerOpen;prior.moveReassign=moved;prior.exactPlacement=exactPlacement;prior.noCatalogScroll=noCatalogScroll;prior.errors=[...(prior.errors||[]),...errs];
    window.__DOPAMINE_SUPPORT_TEST=prior;
  }catch(e){prior.ui=false;prior.socketUiV2=false;prior.errors=[...(prior.errors||[]),String(e?.message||e)];window.__DOPAMINE_SUPPORT_TEST=prior}
  return
