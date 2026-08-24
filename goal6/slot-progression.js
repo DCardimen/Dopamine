@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
 const raw=window.DopamineSupports,skills=window.DopamineSkills;if(!raw||!skills)return;
-const q=new URLSearchParams(location.search),QA=['supporttest','supportmobile','supportsoak'].some(k=>q.has(k));
+const q=new URLSearchParams(location.search),QA=['supporttest','supportmobile','supportsoak','supportmatrix','supportsocktest'].some(k=>q.has(k));
 const KEY='dopamineSupportSlotsV11',MAX=10;
 const EXPECTED_HIGH_LEVEL=[2,4,8,16,32,64,125,250,500,1000];
 const MIN_MONSTER_LEVEL=[1,4,8,12,18,25,32,40,50,60];
