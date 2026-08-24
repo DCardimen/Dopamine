@@ -22,31 +22,36 @@ jobs:
         run: |
           set +e; : >/tmp/support-report.txt
           SYNTAX=0
-          for F in goal6/stage-summary.js goal6/catalog.js goal6/runtime.js goal6/room-rollover-fix.js goal6/slot-progression.js goal6/ui.js goal6/quality-room-compat.js goal6/quality.js goal6/quality-final.js; do node --check "$F" || SYNTAX=1; done
+          for F in goal6/stage-summary.js goal6/catalog.js goal6/runtime.js goal6/room-rollover-fix.js goal6/slot-progression.js goal6/socket-model-v2.js goal6/ui.js goal6/quality-room-compat.js goal6/quality.js goal6/quality-sockets-v2.js goal6/quality-final.js goal6/quality-matrix-v2.js; do node --check "$F" || SYNTAX=1; done
           echo "SYNTAX_EXIT=$SYNTAX" | tee -a /tmp/support-report.txt
           python3 - <<'PY'
           from pathlib import Path
           src=Path('playtest/index.html').read_text()
           g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
           g4=['catalog.js','runtime.js','fun-pass.js','gap-pass.js','gap-stability.js','final-polish.js']
-          g6=['stage-summary.js','catalog.js','runtime.js','room-rollover-fix.js','slot-progression.js','ui.js','quality-room-compat.js','quality.js','quality-final.js']
+          g6=['stage-summary.js','catalog.js','runtime.js','room-rollover-fix.js','slot-progression.js','socket-model-v2.js','ui.js','quality-room-compat.js','quality.js','quality-sockets-v2.js','quality-final.js','quality-matrix-v2.js']
           scripts=''.join(f'<script src="/goal3/{f}?v=support6"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}?v=support6"></script>' for f in g4)+''.join(f'<script src="/goal6/{f}?v=support6"></script>' for f in g6)
           Path('playtest/support-final.html').write_text(src.replace('</body>',scripts+'</body>'))
           PY
           HARNESS=$?; echo "HARNESS_EXIT=$HARNESS" | tee -a /tmp/support-report.txt
           C="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"; echo "CHROME=$C" | tee -a /tmp/support-report.txt; [ -n "$C" ] && "$C" --version | tee -a /tmp/support-report.txt
           python3 -m http.server 4173 >/tmp/http.log 2>&1 & HP=$!; sleep 1
-          CORE=99; MOBILE=99; SOAK=99; G2=99
+          CORE=99; MOBILE=99; MATRIX=99; SOAK=99; G2=99
           if [ "$SYNTAX" -eq 0 ] && [ "$HARNESS" -eq 0 ] && [ -n "$C" ]; then
             timeout 90s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=60000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supporttest=1&seed=6611227' >/tmp/core 2>/tmp/core.err
-            grep -q 'SUPPORT_FINAL_CORE_OK=true' /tmp/core && grep -q 'CATALOG_COUNT=60' /tmp/core && grep -q 'MEANINGFUL_EFFECTS=true' /tmp/core && grep -q 'SLOT_PROGRESSION=true' /tmp/core && grep -q 'SLOTS_START_ZERO=true' /tmp/core && grep -q 'SLOT_CURVE_ESCALATES=true' /tmp/core && grep -q 'SLOT10_LONG_CHASE=true' /tmp/core && grep -q 'HIGHER_MONSTER_BETTER=true' /tmp/core && grep -q 'PICKUP_UNLOCKS_SLOT=true' /tmp/core && grep -q 'TEN_SLOT_CAP=true' /tmp/core && grep -q 'ELEVENTH_REJECTED=true' /tmp/core && grep -q 'ECHO_REPEAT_CAST=true' /tmp/core && grep -q 'CONVERSION_COLD_APPLIED=true' /tmp/core && grep -q 'ROOM_ROLLOVER_READY=true' /tmp/core && grep -q 'ERRORS=</pre>' /tmp/core; CORE=$?
+            grep -q 'SUPPORT_FINAL_CORE_OK=true' /tmp/core && grep -q 'CATALOG_COUNT=60' /tmp/core && grep -q 'MEANINGFUL_EFFECTS=true' /tmp/core && grep -q 'SLOT_PROGRESSION=true' /tmp/core && grep -q 'SLOTS_START_ZERO=true' /tmp/core && grep -q 'SLOT_CURVE_ESCALATES=true' /tmp/core && grep -q 'SLOT10_LONG_CHASE=true' /tmp/core && grep -q 'HIGHER_MONSTER_BETTER=true' /tmp/core && grep -q 'PICKUP_UNLOCKS_SLOT=true' /tmp/core && grep -q 'TEN_SLOT_CAP=true' /tmp/core && grep -q 'ELEVENTH_REJECTED=true' /tmp/core && grep -q 'ECHO_REPEAT_CAST=true' /tmp/core && grep -q 'CONVERSION_COLD_APPLIED=true' /tmp/core && grep -q 'ROOM_ROLLOVER_READY=true' /tmp/core && grep -q 'DIRECT_SOCKET_UI=true' /tmp/core && grep -q 'SOCKET_PICKER=true' /tmp/core && grep -q 'AUTO_MOVE_REASSIGN=true' /tmp/core && grep -q 'EXACT_SOCKET_PLACEMENT=true' /tmp/core && grep -q 'NO_CATALOG_SCROLL=true' /tmp/core && grep -q 'ERRORS=</pre>' /tmp/core; CORE=$?
             echo "SUPPORT_CORE_EXIT=$CORE" | tee -a /tmp/support-report.txt
-            for K in SUPPORT_FINAL_CORE_OK CATALOG_COUNT CATEGORY_COUNT CATEGORY_LIST MEANINGFUL_EFFECTS EFFECTLESS MIN_COMPATIBLE_PER_SKILL SLOT_PROGRESSION SLOTS_START_ZERO SLOT_CURVE_ESCALATES SLOT10_LONG_CHASE HIGHER_MONSTER_BETTER PICKUP_UNLOCKS_SLOT TEN_SLOT_CAP ELEVENTH_REJECTED COPY_ALLOCATION COOLDOWN_CHANGED CONVERSION_COLD_APPLIED ECHO_REPEAT_CAST ROOM_ROLLOVER_READY BOSS_STAGE_DROPS SUPPORT_UI ERRORS; do grep -o "$K=[^<]*" /tmp/core | head -1 | tee -a /tmp/support-report.txt; done
+            for K in SUPPORT_FINAL_CORE_OK CATALOG_COUNT CATEGORY_COUNT CATEGORY_LIST MEANINGFUL_EFFECTS EFFECTLESS MIN_COMPATIBLE_PER_SKILL SLOT_PROGRESSION SLOTS_START_ZERO SLOT_CURVE_ESCALATES SLOT10_LONG_CHASE HIGHER_MONSTER_BETTER PICKUP_UNLOCKS_SLOT TEN_SLOT_CAP ELEVENTH_REJECTED COPY_ALLOCATION COOLDOWN_CHANGED CONVERSION_COLD_APPLIED ECHO_REPEAT_CAST ROOM_ROLLOVER_READY BOSS_STAGE_DROPS SUPPORT_UI DIRECT_SOCKET_UI SOCKET_PICKER AUTO_MOVE_REASSIGN EXACT_SOCKET_PLACEMENT NO_CATALOG_SCROLL ERRORS; do grep -o "$K=[^<]*" /tmp/core | head -1 | tee -a /tmp/support-report.txt; done
 
             timeout 75s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --virtual-time-budget=45000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supportmobile=1&seed=6611227' >/tmp/mobile 2>/tmp/mobile.err
-            grep -q 'SUPPORT_MOBILE_OK=true' /tmp/mobile && grep -q 'SUMMARY_VISIBLE=true' /tmp/mobile && grep -q 'PROCEED_VISIBLE=true' /tmp/mobile && grep -q 'PROCEED_TOPMOST=true' /tmp/mobile && grep -q 'SUPPORT_PANEL=true' /tmp/mobile && grep -q 'LOCKED_SLOTS_AT_START=10' /tmp/mobile && grep -q 'ERRORS=</pre>' /tmp/mobile; MOBILE=$?
+            grep -q 'SUPPORT_MOBILE_OK=true' /tmp/mobile && grep -q 'SUMMARY_VISIBLE=true' /tmp/mobile && grep -q 'PROCEED_VISIBLE=true' /tmp/mobile && grep -q 'PROCEED_TOPMOST=true' /tmp/mobile && grep -q 'SUPPORT_PANEL=true' /tmp/mobile && grep -q 'LOCKED_SLOTS_AT_START=10' /tmp/mobile && grep -q 'SOCKET_PICKER_CLICK=true' /tmp/mobile && grep -q 'SOCKET_ASSIGN_CLICK=true' /tmp/mobile && grep -q 'ERRORS=</pre>' /tmp/mobile; MOBILE=$?
             echo "SUPPORT_MOBILE_EXIT=$MOBILE" | tee -a /tmp/support-report.txt
-            for K in SUPPORT_MOBILE_OK SUMMARY_VISIBLE SUMMARY_FOOTER_CLEARANCE PROCEED_VISIBLE PROCEED_TOPMOST PROCEED_TEXT SUPPORT_PANEL LOCKED_SLOTS_AT_START VIEWPORT ERRORS; do grep -o "$K=[^<]*" /tmp/mobile | head -1 | tee -a /tmp/support-report.txt; done
+            for K in SUPPORT_MOBILE_OK SUMMARY_VISIBLE SUMMARY_FOOTER_CLEARANCE PROCEED_VISIBLE PROCEED_TOPMOST PROCEED_TEXT SUPPORT_PANEL LOCKED_SLOTS_AT_START SOCKET_PICKER_CLICK SOCKET_ASSIGN_CLICK VIEWPORT ERRORS; do grep -o "$K=[^<]*" /tmp/mobile | head -1 | tee -a /tmp/support-report.txt; done
+
+            timeout 180s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=120000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supportmatrix=1&seed=773311' >/tmp/matrix 2>/tmp/matrix.err
+            grep -q 'SUPPORT_MATRIX_OK=true' /tmp/matrix && grep -q 'ACTIVE_SKILLS=30' /tmp/matrix && grep -q 'SUPPORTS=60' /tmp/matrix && grep -q 'ALL_COMPATIBLE_PAIRS_CAST=true' /tmp/matrix && grep -q 'ALL_SUPPORTS_SEMANTICALLY_EXERCISED=true' /tmp/matrix && grep -q 'ERRORS=</pre>' /tmp/matrix; MATRIX=$?
+            echo "SUPPORT_MATRIX_EXIT=$MATRIX" | tee -a /tmp/support-report.txt
+            for K in SUPPORT_MATRIX_OK ACTIVE_SKILLS SUPPORTS COMPATIBLE_PAIRS_TESTED ALL_COMPATIBLE_PAIRS_CAST ALL_SUPPORTS_SEMANTICALLY_EXERCISED SEMANTIC_FAILURES PAIR_FAILURES PAIR_BY_SKILL ERRORS; do grep -o "$K=[^<]*" /tmp/matrix | head -1 | tee -a /tmp/support-report.txt; done
 
             timeout 210s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=180000 --dump-dom 'http://127.0.0.1:4173/playtest/support-final.html?supportsoak=1&seed=38118421' >/tmp/soak 2>/tmp/soak.err
             grep -q 'SUPPORT_SOAK_OK=true' /tmp/soak && grep -q 'SIM_SECONDS=3600' /tmp/soak && grep -q 'STALLS=0' /tmp/soak && grep -q 'CAST_COVERAGE=true' /tmp/soak && grep -q 'SUPPORT_COVERAGE=true' /tmp/soak && grep -q 'ERRORS=</pre>' /tmp/soak; SOAK=$?
@@ -57,9 +62,9 @@ jobs:
             grep -q 'SELFTEST_OK=true' /tmp/g2 && grep -q 'ERRORS=</pre>' /tmp/g2; G2=$?; echo "GOAL2_REGRESSION_EXIT=$G2" | tee -a /tmp/support-report.txt
           fi
           kill "$HP" 2>/dev/null || true
-          if [ "$CORE" -eq 0 ] && [ "$MOBILE" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$G2" -eq 0 ]; then echo 'SUPPORT_FINAL=PASS' | tee -a /tmp/support-report.txt; exit 0; fi
+          if [ "$CORE" -eq 0 ] && [ "$MOBILE" -eq 0 ] && [ "$MATRIX" -eq 0 ] && [ "$SOAK" -eq 0 ] && [ "$G2" -eq 0 ]; then echo 'SUPPORT_FINAL=PASS' | tee -a /tmp/support-report.txt; exit 0; fi
           echo 'SUPPORT_FINAL=FAIL' | tee -a /tmp/support-report.txt
-          for F in core mobile soak; do echo "--- $F tail ---" | tee -a /tmp/support-report.txt; tail -c 10000 "/tmp/$F" 2>/dev/null | tee -a /tmp/support-report.txt; echo "--- $F stderr ---" | tee -a /tmp/support-report.txt; tail -c 3000 "/tmp/$F.err" 2>/dev/null | tee -a /tmp/support-report.txt; done
+          for F in core mobile matrix soak; do echo "--- $F tail ---" | tee -a /tmp/support-report.txt; tail -c 10000 "/tmp/$F" 2>/dev/null | tee -a /tmp/support-report.txt; echo "--- $F stderr ---" | tee -a /tmp/support-report.txt; tail -c 3000 "/tmp/$F.err" 2>/dev/null | tee -a /tmp/support-report.txt; done
           exit 1
       - name: Publish support report
         if: always()
