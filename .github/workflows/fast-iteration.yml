@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: dopamine-fast-${{ github.ref }}
@@ -69,3 +70,11 @@ jobs:
             echo
             echo 'The exhaustive support matrix and 1-hour soak are intentionally reserved for the manual Final Gate.'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish fast-loop commit status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ job.status }}
+        run: |
+          if [ "$RESULT" = success ]; then STATE=success; DESC='Fast browser iteration gate passed'; else STATE=failure; DESC='Fast browser iteration gate failed'; fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -f state="$STATE" -f context='dopamine/fast-iteration' -f description="$DESC" >/dev/null
