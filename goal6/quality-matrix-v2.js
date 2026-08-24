@@ -28,7 +28,7 @@ function semanticCheck(supid,sidOverride=null){
  if(def.mods&&Object.values(def.mods).some(v=>v!==1))checks.push(['mods',previewChanged(def,base,after)]);
  let casts=1;
  if(def.repeat?.every)casts=def.repeat.every;
- P.hp=P.max*.55;const hpBeforeCast=P.hp;let castOK=true;
+ P.hp=def.selfDamage?P.max:P.max*.55;const hpBeforeCast=P.hp;let castOK=true;
  for(let i=0;i<casts;i++)castOK=castSkill(sid,main,true,false)&&castOK;
  const afterCast=sup.preview(sid);
  checks.push(['cast',castOK]);
@@ -49,10 +49,13 @@ function semanticCheck(supid,sidOverride=null){
  if(def.dot)checks.push(['dot',sup.preview(sid).dotQueue>0]);
  if(def.leech)checks.push(['leech',P.hp>P.max*.5]);
  if(def.onKill){
-   sup.reset();sup.debugUnlockAll(2);sup.debugSetSlots(sid,10);sup.assignSocket(sid,0,supid);beginRoom();brain.skills=[];world=controlled(false,4);main=world.main;others=world.others;source=api.get(sid).name;main.hp=5;main.max=100;const ob=others.map(e=>e.hp);castSkill(sid,main,true,false);hit(main,100,source,false,0);
-   if(def.onKill==='burst')checks.push(['onKillBurst',others.some((e,i)=>e.hp<ob[i])]);
+   sup.reset();sup.debugUnlockAll(2);sup.debugSetSlots(sid,10);sup.assignSocket(sid,0,supid);beginRoom();brain.skills=[];world=controlled(false,5);main=world.main;others=world.others;source=api.get(sid).name;
+   castSkill(sid,main,true,false);
+   const victim=others.shift();victim.hp=5;victim.max=100;const witnesses=others.filter(e=>!e.dead),ob=witnesses.map(e=>e.hp);
+   hit(victim,100,source,false,0);
+   if(def.onKill==='burst')checks.push(['onKillBurst',witnesses.some((e,i)=>e.hp<ob[i])]);
    else if(def.onKill==='epidemic')checks.push(['onKillEpidemic',sup.preview(sid).dotQueue>0]);
-   else if(def.onKill==='reset'){const t=others.find(e=>!e.dead);const st=skillState(sid,t,false);checks.push(['onKillReset',String(st?.reason||'')==='SUPPORT RESET'||st?.ok===true])}
+   else if(def.onKill==='reset')checks.push(['onKillReset',sup.preview(sid).resetReadyUntil>=roomClock]);
  }
  if(def.pattern){
    sup.reset();sup.debugUnlockAll(2);sup.debugSetSlots(sid,10);sup.assignSocket(sid,0,supid);beginRoom();brain.skills=[];world=controlled(def.pattern==='farshot',def.pattern==='duelist'?0:4);main=world.main;source=api.get(sid).name;
