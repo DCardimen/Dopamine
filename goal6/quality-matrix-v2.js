@@ -59,7 +59,7 @@ function semanticCheck(supid){
    if(def.pattern==='crescendo')for(let i=0;i<5;i++)castSkill(sid,main,true,false);
    if(def.pattern==='ruthless')for(let i=0;i<3;i++)castSkill(sid,main,true,false);
    if(def.pattern==='staccato')castSkill(sid,main,true,false);
-   const bh=main.hp;hit(main,50,source,false,0),dealt=bh-main.hp;
+   const bh=main.hp;hit(main,50,source,false,0);const dealt=bh-main.hp;
    if(['pointblank','farshot','crescendo','ruthless','duelist','staccato'].includes(def.pattern))checks.push(['pattern',Math.abs(dealt-50)>1]);
  }
  if(def.conversion){
