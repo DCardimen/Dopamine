@@ -39,7 +39,7 @@ jobs:
           src=Path('playtest/index.html').read_text()
           g3=['legacy-compat.js','skills.js','runtime-fixes.js','progression.js','brain-sync.js','polish.js','signoff.js','signoff-fixes.js','drop-corner-fix.js']
           g4=['catalog.js','runtime.js','fun-pass.js','gap-pass.js','gap-stability.js','final-polish.js']
-          g6=['stage-summary.js','catalog.js','runtime.js','room-rollover-fix.js','slot-progression.js','socket-model-v2.js','ui.js','friendly-skill-entry.js','quality-fast-entry.js']
+          g6=['stage-summary.js','catalog.js','runtime.js','room-rollover-fix.js','slot-progression.js','socket-model-v2.js','ui.js','friendly-skill-entry.js','friendly-ux-v2.js','quality-fast-entry.js']
           scripts=''.join(f'<script src="/goal3/{f}"></script>' for f in g3)+''.join(f'<script src="/goal4/{f}"></script>' for f in g4)+''.join(f'<script src="/goal6/{f}"></script>' for f in g6)
           Path('playtest/fast-iteration.html').write_text(src.replace('</body>',scripts+'</body>'))
           PY
@@ -56,6 +56,14 @@ jobs:
           grep -q 'DIRECT_SKILL_OPENS_SUPPORTS=true' /tmp/fast
           grep -q 'SUPPORT_SLOT_COUNT=10' /tmp/fast
           grep -q 'EQUIP_CONTROL_NOT_HIJACKED=true' /tmp/fast
+          grep -q 'ACTIVE_SKILLS_FIRST=true' /tmp/fast
+          grep -q 'LOADOUT_SUPPORT_COUNTS=true' /tmp/fast
+          grep -q 'LOADOUT_CARD_OPENS_SUPPORTS=true' /tmp/fast
+          grep -q 'QUICK_ACTIONS=true' /tmp/fast
+          grep -q 'ADD_NEXT_OPENS_FIRST_EMPTY=true' /tmp/fast
+          grep -q 'RECOMMENDED_SUPPORTS=true' /tmp/fast
+          grep -q 'AUTO_FILL_EMPTY=true' /tmp/fast
+          grep -q 'ACTIVE_SKILL_NAV=true' /tmp/fast
           grep -q 'ERRORS=</pre>' /tmp/fast
           timeout 30s "$C" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=10000 --dump-dom 'http://127.0.0.1:4173/playtest/index.html?selftest=1&seed=13699422' >/tmp/g2 2>/tmp/g2.err
           grep -q 'SELFTEST_OK=true' /tmp/g2
@@ -63,13 +71,15 @@ jobs:
           {
             echo '## Fast Iteration Gate ✅'
             echo
-            echo '- Syntax: PASS'
-            echo '- Direct skill → support sockets: PASS'
-            echo '- 10-slot support screen: PASS'
-            echo '- Equip controls remain independent: PASS'
+            echo '- Direct skill/loadout → support sockets: PASS'
+            echo '- Active skills sorted first: PASS'
+            echo '- Add-next + auto-fill actions: PASS'
+            echo '- Three recommended support picks: PASS'
+            echo '- Previous/next active skill navigation: PASS'
+            echo '- 10-slot UI + equip-control safety: PASS'
             echo '- Goal 02 smoke regression: PASS'
             echo
-            echo 'The exhaustive support matrix and 1-hour soak are intentionally reserved for the manual Final Gate.'
+            echo 'The exhaustive support matrix and 1-hour soak remain reserved for the manual Final Gate.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Publish failure diagnostics
         if: failure()
@@ -82,7 +92,7 @@ jobs:
             echo "Commit: \`$GITHUB_SHA\`"
             echo
             echo '```text'
-            grep -o 'SUPPORT_FAST_OK=[^<]*\|DIRECT_SKILL_CARD=[^<]*\|LEGACY_SUPPORT_BUTTON_HIDDEN=[^<]*\|DIRECT_SKILL_OPENS_SUPPORTS=[^<]*\|SUPPORT_SLOT_COUNT=[^<]*\|EQUIP_CONTROL_NOT_HIJACKED=[^<]*\|EXCEPTION=[^<]*\|ERRORS=[^<]*' /tmp/fast 2>/dev/null || true
+            grep -o 'SUPPORT_FAST_OK=[^<]*\|DIRECT_SKILL_CARD=[^<]*\|LEGACY_SUPPORT_BUTTON_HIDDEN=[^<]*\|DIRECT_SKILL_OPENS_SUPPORTS=[^<]*\|SUPPORT_SLOT_COUNT=[^<]*\|EQUIP_CONTROL_NOT_HIJACKED=[^<]*\|ACTIVE_SKILLS_FIRST=[^<]*\|LOADOUT_SUPPORT_COUNTS=[^<]*\|LOADOUT_CARD_OPENS_SUPPORTS=[^<]*\|QUICK_ACTIONS=[^<]*\|ADD_NEXT_OPENS_FIRST_EMPTY=[^<]*\|RECOMMENDED_SUPPORTS=[^<]*\|AUTO_FILL_EMPTY=[^<]*\|ACTIVE_SKILL_NAV=[^<]*\|EXCEPTION=[^<]*\|ERRORS=[^<]*' /tmp/fast 2>/dev/null || true
             grep -o 'SELFTEST_OK=[^<]*\|ERRORS=[^<]*' /tmp/g2 2>/dev/null || true
             tail -n 10 /tmp/fast.err 2>/dev/null || true
             echo '```'
