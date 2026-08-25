@@ -72,8 +72,9 @@ function decoratePicker(){
  const box=document.createElement('div');box.className='g6recommend';box.innerHTML=rec.map(id=>{const d=cat.get(id),move=(sup.availableCopies?.(id,sid)||0)<=0;return`<button data-g6-rec="${id}" class="${move?'move':''}"><b>★ ${d.name}</b><span>${move?'MOVE HERE':d.category+' • RECOMMENDED'}</span></button>`}).join('');
  box.querySelectorAll('[data-g6-rec]').forEach(b=>b.onclick=()=>{const id=b.dataset.g6Rec,r=sup.assignSocket?.(sid,slot,id);if(r?.ok){ui.closePicker?.();ui.render?.(sid)}});list.prepend(box)
 }
-function refresh(){if(busy)return;busy=true;requestAnimationFrame(()=>{try{reorderArsenal();decorateSupport();decoratePicker()}finally{busy=false}})}
+function decorateNow(){reorderArsenal();decorateSupport();decoratePicker()}
+function refresh(){if(busy)return;busy=true;requestAnimationFrame(()=>{try{decorateNow()}finally{busy=false}})}
 const mo=new MutationObserver(refresh);mo.observe(document.body,{childList:true,subtree:true});
 document.addEventListener('click',()=>requestAnimationFrame(refresh),true);requestAnimationFrame(refresh);
-window.DopamineFriendlyUX=Object.freeze({version:'Friendly UX v2.0',activeIds,score,candidates,firstEmpty,addNext,autoFill,cycle,refresh});
+window.DopamineFriendlyUX=Object.freeze({version:'Friendly UX v2.1',activeIds,score,candidates,firstEmpty,addNext,autoFill,cycle,decorateNow,refresh});
 })();
